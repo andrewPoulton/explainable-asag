@@ -36,8 +36,9 @@ def run():
     cuda  = False
 
     ## mock config
-    config = SimpleNamespace(**{'num_labels':2, 'total_steps': 24*1024})
-    training.train_epoch(loader, model, optimizer, lr_scheduler, config, cuda)
+    num_labels= 2
+    total_steps = 16
+    training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)
 
 
 if __name__ == '__main__':

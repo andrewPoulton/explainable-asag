@@ -17,7 +17,7 @@ with warnings.catch_warnings():
 
 
 
-def train_epoch(loader, model, optimizer, lr_scheduler, config, cuda):
+def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda):
     loss_fn = torch.nn.CrossEntropyLoss()
     with tqdm(total=len(loader.batch_sampler)) as pbar:
         epoch_loss = 0.
@@ -29,7 +29,7 @@ def train_epoch(loader, model, optimizer, lr_scheduler, config, cuda):
             logits = model(input_ids = batch.input, attention_mask = mask)
             logits = logits[0]
             # import pdb; pdb.set_trace()
-            loss = loss_fn(logits.view(-1, config.num_labels), batch.labels.view(-1))
+            loss = loss_fn(logits.view(-1, num_labels), batch.labels.view(-1))
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 10.)
             optimizer.step()
@@ -47,7 +47,7 @@ def train_epoch(loader, model, optimizer, lr_scheduler, config, cuda):
             # wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Gradient Norm": grad_norm(model).item(), "Learning Rate": optimizer.param_groups[0]['lr']})
             pbar.set_description(f'global_step: {lr_scheduler.last_epoch}| loss: {loss.item():.4f}| acc: {acc*100:.1f}%| epoch_av_loss: {epoch_loss/(i+1):.4f} |')
             pbar.update(1)
-            if lr_scheduler.last_epoch > config.total_steps:
+            if lr_scheduler.last_epoch > total_steps:
                 break
         #  move stuff off GPU
         batch.cpu()

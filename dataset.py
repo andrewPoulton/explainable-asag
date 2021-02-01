@@ -8,6 +8,7 @@ from typing import List, Dict
 from tqdm import tqdm
 from copy import deepcopy
 from transformers import AutoTokenizer
+from torch.utils.data import SequentialSampler, RandomSampler, BatchSampler, DataLoader
 import xml.etree.ElementTree as et
 import pandas as pd
 import torch
@@ -51,10 +52,10 @@ class Batch(SimpleNamespace):
 
 
 class SemEvalDataset(Dataset):
-    def __init__(self, data, vocab_file, num_labels = 2, train_percent = 100):
-        self.data = pd.read_csv(data)
+    def __init__(self, data_file = 'data/flat_semeval5way_train.csv', vocab_file = 'bert-base-uncased',  num_labels = 2, train_percent = 100):
+        self.data = pd.read_csv(data_file)
         self.num_labels = num_labels
-        self.tokenizer = AutoTokenizer.from_pretrained(vocab_file,lowercase=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(vocab_file, lowercase=True)
         self.label_map = {'correct':0,
                         'contradictory':1,
                         'partially_correct_incomplete':2,
@@ -64,7 +65,7 @@ class SemEvalDataset(Dataset):
         self._2way_labels = lambda x: 1 if x >=1 else x
         self.progress_encode()
         self._data = self.data.copy()
-        self.test = 'test' in data
+        self.test = 'test' in data_file
         self.source = ''
         self.train_percent = train_percent
         
@@ -88,7 +89,8 @@ class SemEvalDataset(Dataset):
             num_egs = int(self.train_percent*0.01*len(self.data))
             self.data = self.data.iloc[:num_egs]
 
-    def set_data_source(self,source):
+    # what is the function of set_data_source and why select train_percent here?
+    def set_data_source(self, source):
         data = self._data[self._data.source == source]
         self.data = data
         self.source = source
@@ -152,3 +154,19 @@ class SemEvalDataset(Dataset):
                 'token_type_ids':pad_tensor_batch(token_type_ids),
                 'labels': torch.Tensor(labels).long()}
         return Batch(**data)
+
+
+
+# def dataloader(data_file = 'data/flat_semeval5way_train.csv', data_source = "scientsbank",
+#                vocab_file = 'bert-base-uncased',
+#                num_labels = 2, train_percent = 100,
+#                val_mode = False, random = True,
+#                batch_size = 4, drop_last = False, num_workers = 0):
+#     data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
+#     data.set_data_source(data_source)
+#     if val:
+#         data.to_val_mode
+#     sampler = RandomSampler(data) if random else SequentialSampler(data)
+#     batch_sampler = BatchSampler(sampler, batch_size = batch_size, drop_last=drop_last)
+#     loader = DataLoader(data, batch_sampler=batch_sampler, collate_fn=data.collater, num_workers = num_workers)
+#     return loader

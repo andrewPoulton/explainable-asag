@@ -25,7 +25,7 @@ def train_epoch(loader, model, optimizer, lr_scheduler, config, cuda):
             if cuda:
                 batch.cuda()
             optimizer.zero_grad()
-            mask = generate_mask(batch)
+            mask = batch.generate_mask()
             logits = model(input_ids = batch.input, attention_mask = mask, token_type_ids = batch.token_type_ids)
             logits = logits[0]
             # import pdb; pdb.set_trace()

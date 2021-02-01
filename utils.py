@@ -8,9 +8,8 @@ def load_config(cfg):
     return SimpleNamespace(**config)
 
 
-
 def configure_model(model, config):
-    ...
+    pass
 
 def init_model(config):
     model = AutoModelForSequenceClassification.from_pretrained(config.model_path)

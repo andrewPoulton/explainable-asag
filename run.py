@@ -17,15 +17,18 @@ import fire
 
 
 def run():
+    experiment = configs.list_experiments()[0]
     ## init loader
-    config = configs.load('albert-base')
-    data_train = dataset.SemEvalDataset('data/flat_semeval5way_train.csv', config.model_path, train_percent = 100)
+    config = configs.load(experiment)
+    data_train = dataset.SemEvalDataset('data/flat_semeval5way_train.csv', config.model_path,
+                                        train_percent = 0.01) # for rapid testing... change back to 100
     sampler = RandomSampler(data_train)
     batch_sampler = BatchSampler(sampler, batch_size = 2, drop_last=False)
-    loader = DataLoader(data_train, batch_sampler=batch_sampler, collate_fn=data_train.collater,  num_workers = 0)
+    loader = DataLoader(data_train, batch_sampler=batch_sampler, collate_fn=data_train.collater,
+                        num_workers = 0) # Change to i > 0 for multi-processing, I ran into error on my mac
 
     ## init model
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
+    model = AutoModelForSequenceClassification.from_pretrained(config.model_path)
 
     ## other parameters
     optimizer = torch.optim.Adam(model.parameters(), lr = 1e-5)

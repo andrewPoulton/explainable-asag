@@ -76,11 +76,21 @@ CONFIGS = {
     }
 }
 
+def list_experiments():
+    return list(CONFIGS.keys())
 
 def load(experiment):
     config = DEFAULT_CONFIG
     try:
         config.update(CONFIGS[experiment])
-    except  AttributeError:
-        warn(f"Did not choose experiment from {CONFIGS.keys()}.\nUsing default_config.")
+        print(f"Loaded configs for experiment '{experiment}'")
+    except  KeyError:
+        warn("Invalid experiment!")
+        print(f"The experiment '{experiment} is invalid. Experiments should be chosen from:")
+        for i, valid in enumerate(list_experiments()):
+            print(f"{i}.  {valid}")
+        print("NB: Will use default settings instead!")
     return SimpleNamespace(**config)
+
+
+

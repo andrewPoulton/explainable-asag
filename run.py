@@ -29,16 +29,16 @@ def run():
     for  experiment in  experiments:
         config = configs.load(experiment)
         loader = dataset.dataloader(
-         data_file = 'data/flat_semeval5way_train.csv',
-         data_source = "scientsbank",
-         vocab_file = config.model_path,
-         num_labels = config.num_labels,
-         train_percent = train_percent,
-         val_mode = False,
-         random = True,
-         batch_size = config.batch_size,
-         drop_last = False,
-         num_workers = 0) #num_workers = 4 gives error on my mac, cannot pickle local function
+            data_file = 'data/flat_semeval5way_train.csv',
+            data_source = "scientsbank",
+            vocab_file = config.model_path,
+            num_labels = config.num_labels,
+            train_percent = train_percent,
+            val_mode = False,
+            random = True,
+            batch_size = config.batch_size,
+            drop_last = False,
+            num_workers = 4) #num_workers = 4 gives error on my mac, cannot pickle local function
 
         model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
         optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)

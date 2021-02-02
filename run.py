@@ -9,25 +9,26 @@ import torch
 
 
 def run():
-   failing = [
-      "albert-base-squad2",
-### TODO: Throws ERROR on loading tokenizer:
-### ValueError: Couldn't instantiate the backend tokenizer from one of:
-### (1) a `tokenizers` library serialization file,
-### (2) a slow tokenizer instance to convert or (3) an equivalent slow tokenizer class to instantiate and convert.
-### You need to have sentencepiece installed to convert a slow tokenizer to a fast one.
-      "roberta-large-stsb",
-      "distilroberta-base-stsb"
-### TODO: Throw ERROR on computing loss in training. Something to do with non-matching batch sizes.
-### with batch_size = 4 I got
-### ValueError: Expected input batch_size (1) to match target batch_size (2).
-### with batch_size = 1 I got
-### RuntimeError: shape '[-1, 2]' is invalid for input of size 1
+   train_percent = 1 # for testing the training cycle locally
+   total_steps = 64
+   experiments =[
+       # 'bert-base',
+       # 'bert-large',
+       'roberta-base',
+       'roberta-large',
+       # 'albert-base',
+       # 'albert-large',
+       # 'distilbert-base-uncased',
+       # 'distilroberta',
+       # 'distilbert-base-squad2',
+       # 'roberta-base-squad2',
+       # 'distilroberta-base-squad2',
+       # 'bert-base-squad2',
+       # 'albert-base-squad2',
+######## "roberta-large-stsb"
+######## "distilroberta-base-stsb"
    ]
-   for  experiment in [e for e in  configs.list_experiments() if e not in failing]:
-
-        train_percent = 1 # for testing the training cycle locally
-        total_steps = 64
+   for  experiment in  experiments:
         config = configs.load(experiment)
         loader = dataset.dataloader(
                data_file = 'data/flat_semeval5way_train.csv',
@@ -46,6 +47,7 @@ def run():
         lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
         cuda = torch.cuda.is_available()
         num_labels = config.num_labels
+
         training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)
 
 

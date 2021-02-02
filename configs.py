@@ -10,6 +10,7 @@ WARMUP_STEPS = 1024
 SEQUENCE_LENGTH = 512
 NUM_LABELS = 2
 BATCH_SIZE = 4
+TOTAL_STEPS = 64
 
 
 # default config (overwritten by CONFIGS)
@@ -83,15 +84,15 @@ CONFIGS = {
     "albert-base-squad2" : {
         "model_path" : "twmkn9/albert-base-v2-squad2",
     },
-## sentence similarity pretraining
-#14
-    "roberta-large-stsb" : {
-        "model_path" : "sentence-transformers/ce-roberta-large-stsb",
-    },
-#15
-    "distilroberta-base-stsb" : {
-        "model_path" : "sentence-transformers/ce-distilroberta-base-stsb"
-    }
+## sentence similarity pretraining ## TODO: Deal with mismatch in classification head
+# #14
+#     "roberta-large-stsb" : {
+#         "model_path" : "sentence-transformers/ce-roberta-large-stsb",
+#     },
+# #15
+#     "distilroberta-base-stsb" : {
+#         "model_path" : "sentence-transformers/ce-distilroberta-base-stsb"
+#     }
 }
 
 def list_experiments():

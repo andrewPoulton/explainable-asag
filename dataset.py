@@ -164,7 +164,7 @@ def dataloader(data_file = 'data/flat_semeval5way_train.csv',
                val_mode = False, random = True,
                batch_size = 4, drop_last = False, num_workers = 0):
     data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
-    #data.set_data_source(data_source)
+    data.set_data_source(data_source)
     print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
     if val_mode:
         data.to_val_mode

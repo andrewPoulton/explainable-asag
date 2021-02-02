@@ -45,7 +45,7 @@ def run():
         model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
         optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
-        cuda = False #torch.cuda.is_available()
+        cuda = torch.cuda.is_available()
         num_labels = config.num_labels
 
         training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)

@@ -14,10 +14,11 @@ with warnings.catch_warnings():
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 #    import wandb
     import gc
+    import wandb
 
 
 
-def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda):
+def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log = False):
     loss_fn = torch.nn.CrossEntropyLoss()
     with tqdm(total=len(loader.batch_sampler)) as pbar:
         epoch_loss = 0.
@@ -44,7 +45,8 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps,
             # import pdb; pdb.set_trace()
             epoch_loss += loss.item()
             # if i % config.log_interval == 0:
-            # wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Gradient Norm": grad_norm(model).item(), "Learning Rate": optimizer.param_groups[0]['lr']})
+            if log:
+                wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Gradient Norm": grad_norm(model).item(), "Learning Rate": optimizer.param_groups[0]['lr']})
             pbar.set_description(f'global_step: {lr_scheduler.last_epoch}| loss: {loss.item():.4f}| acc: {acc*100:.1f}%| epoch_av_loss: {epoch_loss/(i+1):.4f} |')
             pbar.update(1)
             if lr_scheduler.last_epoch > total_steps:

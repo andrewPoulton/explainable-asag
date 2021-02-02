@@ -4,6 +4,7 @@ import configs
 import transformers
 import fire
 import torch
+import wandb
 #import utils
 
 def run():
@@ -25,7 +26,9 @@ def run():
       ######## "distilroberta-base-stsb"
     ]
     for  experiment in  experiments:
-
+        log = True
+        if log:
+            wandb.init(project = 'explainable-asag', name = experiment)
         config = configs.load(experiment)
         # mode to configs when decided on values
         batch_size = 8
@@ -53,7 +56,7 @@ def run():
         if cuda:
             model.cuda()
 
-        training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)
+        training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log = log)
 
 
 if __name__ == '__main__':

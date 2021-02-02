@@ -2,7 +2,7 @@ from warnings import warn
 from types import SimpleNamespace
 
 # global config variables
-TRAIN_BATCH_SIZE = 4
+TRAIN_BATCH_SIZE = 8
 ACCUMULATION_STEPS = 4
 LEARN_RATE = 1e-5
 EPOCHS = 24

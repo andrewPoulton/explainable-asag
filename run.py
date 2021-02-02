@@ -9,32 +9,33 @@ import wandb
 
 def run():
     experiments =[
-      # 'bert-base',
-       'bert-large',
-      # 'roberta-base',
-       'roberta-large',
-      # 'albert-base',
+      'bert-base',
+      'bert-large',
+      'roberta-base',
+      'roberta-large',
+      'albert-base',
        'albert-large',
-      # 'distilbert-base-uncased',
-      # 'distilroberta',
-      # 'distilbert-base-squad2',
-      # 'roberta-base-squad2',
-      # 'distilroberta-base-squad2',
-      # 'bert-base-squad2',
-      # 'albert-base-squad2',
+      'distilbert-base-uncased',
+      'distilroberta',
+      'distilbert-base-squad2',
+      'roberta-base-squad2',
+      'distilroberta-base-squad2',
+      'bert-base-squad2',
+      'albert-base-squad2',
       ######## "roberta-large-stsb"
       ######## "distilroberta-base-stsb"
     ]
     for  experiment in  experiments:
         log = True
         if log:
-            wandb.init(project = 'explainable-asag', name = experiment)
+            wandb.init(project = 'explainable-asag', name = experiment +'-1')
         config = configs.load(experiment)
         # mode to configs when decided on values
         batch_size = 8
+        warmup_steps = 64
         learn_rate = 1e-5
         train_percent = 100
-        total_steps = config.total_steps
+        total_steps = 10000
 
         loader = dataset.dataloader(
             data_file = 'data/flat_semeval5way_train.csv',
@@ -50,7 +51,7 @@ def run():
 
         model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
         optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
-        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
+        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
         num_labels = config.num_labels
         cuda = torch.cuda.is_available()
         if cuda:

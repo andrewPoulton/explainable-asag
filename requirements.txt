@@ -1,0 +1,7 @@
+sklearn==0.0
+tokenizers==0.8.1rc1
+transformers==3.0.2
+sentencepiece==0.1.95
+wandb==0.10.2
+
+captum==0.3.0

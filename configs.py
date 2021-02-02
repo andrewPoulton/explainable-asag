@@ -23,7 +23,8 @@ DEFAULT_CONFIG = {
     "warmup_steps" : WARMUP_STEPS,
     "sequence_length" : SEQUENCE_LENGTH,
     "num_labels" : NUM_LABELS,
-    "batch_size" : BATCH_SIZE
+    "batch_size" : BATCH_SIZE,
+    "total_steps": TOTAL_STEPS
 }
 
 

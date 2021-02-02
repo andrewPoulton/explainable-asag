@@ -53,10 +53,7 @@ def run():
         if cuda:
             model.cuda()
 
-
-        log_wandb = True
-
-        training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log_wandb = log_wandb)
+        training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)
 
 
 if __name__ == '__main__':

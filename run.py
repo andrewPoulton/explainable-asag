@@ -27,6 +27,11 @@ def run():
       ######## "distilroberta-base-stsb"
     ]
     for  experiment in  experiments:
+        # mode to configs when decided on values
+        batch_size = 16
+        learn_rate = 1e-5
+        train_percent = 1
+
         config = configs.load(experiment)
         loader = dataset.dataloader(
             data_file = 'data/flat_semeval5way_train.csv',
@@ -36,19 +41,22 @@ def run():
             train_percent = train_percent,
             val_mode = False,
             random = True,
-            batch_size = config.batch_size,
+            batch_size = batch_size,
             drop_last = False,
-            num_workers = 4) #num_workers = 4 gives error on my mac, cannot pickle local function
+            num_workers = 4)
 
         model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
-        optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
-        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
+        optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
+        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, config.total_steps)
         num_labels = config.num_labels
         cuda = torch.cuda.is_available()
         if cuda:
             model.cuda()
 
-        training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)
+
+        log_wandb = True
+
+        training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log_wandb = log_wandb)
 
 
 if __name__ == '__main__':

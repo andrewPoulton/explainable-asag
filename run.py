@@ -44,7 +44,7 @@ def run():
         optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
         num_labels = config.num_labels
-        cuda = qtorch.cuda.is_available()
+        cuda = torch.cuda.is_available()
         if cuda:
             model.cuda()
 

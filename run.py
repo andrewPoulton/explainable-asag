@@ -7,15 +7,13 @@ import torch
 #import utils
 
 def run():
-    train_percent = 1 # for testing the training cycle locally
-    total_steps = 64
     experiments =[
       # 'bert-base',
-      # 'bert-large',
-       'roberta-base',
+       'bert-large',
+      # 'roberta-base',
        'roberta-large',
       # 'albert-base',
-      # 'albert-large',
+       'albert-large',
       # 'distilbert-base-uncased',
       # 'distilroberta',
       # 'distilbert-base-squad2',
@@ -28,7 +26,7 @@ def run():
     ]
     for  experiment in  experiments:
         # mode to configs when decided on values
-        batch_size = 64
+        batch_size = 32
         learn_rate = 1e-5
         train_percent = 5
 

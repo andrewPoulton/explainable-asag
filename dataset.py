@@ -51,10 +51,10 @@ class Batch(SimpleNamespace):
 
 
 class SemEvalDataset(Dataset):
-    def __init__(self, data, vocab_file, num_labels = 2, train_percent = 100):
+    def __init__(self, data, hf_filepath, num_labels = 2, train_percent = 100):
         self.data = pd.read_csv(data)
         self.num_labels = num_labels
-        self.tokenizer = AutoTokenizer.from_pretrained(vocab_file,lowercase=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(hf_filepath,lowercase=True)
         self.label_map = {'correct':0,
                         'contradictory':1,
                         'partially_correct_incomplete':2,
@@ -116,14 +116,7 @@ class SemEvalDataset(Dataset):
             question_tokens = self.tokenizer.encode(row['question_text'])
             reference_tokens = self.tokenizer.encode(row['reference_answers'])
             student_tokens = self.tokenizer.encode(row['student_answers'])
-            # type_map = {i:t for i, t in zip([1,2,3], [question_tokens, reference_tokens, student_tokens])}
-            # order = [1,2,3]
-            # token_type_ids = [0]
-            # tokens = question_tokens[:1]
-            # for o in order:
-            #     token_type_ids += [o] * (len(type_map[o])-1)
-            #     tokens += type_map[o][1:]
-            # # else:
+
             token_type_ids = [0] + [1]*(len(question_tokens)-1) + [2]*(len(reference_tokens)-1) + [3]*(len(student_tokens)-1)
             tokens = question_tokens + reference_tokens[1:] + student_tokens[1:]
             encoded_text[i] = torch.Tensor(tokens).long()

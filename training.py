@@ -46,7 +46,7 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps,
             epoch_loss += loss.item()
             # if i % config.log_interval == 0:
             if log:
-                wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Gradient Norm": grad_norm(model).item(), "Learning Rate": optimizer.param_groups[0]['lr']})
+                wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Learning Rate": optimizer.param_groups[0]['lr']})
             pbar.set_description(f'global_step: {lr_scheduler.last_epoch}| loss: {loss.item():.4f}| acc: {acc*100:.1f}%| epoch_av_loss: {epoch_loss/(i+1):.4f} |')
             pbar.update(1)
             if lr_scheduler.last_epoch > total_steps:

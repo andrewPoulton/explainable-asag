@@ -10,7 +10,7 @@ WARMUP_STEPS = 1024
 SEQUENCE_LENGTH = 512
 NUM_LABELS = 2
 BATCH_SIZE = 4
-TOTAL_STEPS = 64
+TOTAL_STEPS = 10000
 
 
 # default config (overwritten by CONFIGS)
@@ -84,7 +84,7 @@ CONFIGS = {
     "albert-base-squad2" : {
         "model_path" : "twmkn9/albert-base-v2-squad2",
     },
-## sentence similarity pretraining ## TODO: Deal with mismatch in classification head
+## sentence similarity pretraining ## TODO: Fails! Deal with mismatch in classification head.
 # #14
 #     "roberta-large-stsb" : {
 #         "model_path" : "sentence-transformers/ce-roberta-large-stsb",

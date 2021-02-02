@@ -157,7 +157,8 @@ class SemEvalDataset(Dataset):
 
 
 
-def dataloader(data_file = 'data/flat_semeval5way_train.csv', data_source = "scientsbank",
+def dataloader(data_file = 'data/flat_semeval5way_train.csv',
+               data_source = "scientsbank",
                vocab_file = 'bert-base-uncased',
                num_labels = 2, train_percent = 100,
                val_mode = False, random = True,

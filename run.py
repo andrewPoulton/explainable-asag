@@ -28,7 +28,10 @@ def run():
     for  experiment in  experiments:
         log = True
         if log:
-            wandb.init(project = 'explainable-asag', name = experiment +'-1')
+            wandb_project = 'explainable-asag'
+            wandb_run = experiment + '-1'
+            print(f"Names for wandb project = {wandb_project} and run = {wandb_run}\n")
+            wandb.init(project = wandb_project, name = wandb_run)
         config = configs.load(experiment)
         # mode to configs when decided on values
         batch_size = 8

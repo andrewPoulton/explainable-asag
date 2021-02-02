@@ -29,6 +29,7 @@ def run():
         batch_size = 32
         learn_rate = 1e-5
         train_percent = 5
+        total_steps = config.total_steps
 
         config = configs.load(experiment)
         loader = dataset.dataloader(
@@ -45,7 +46,7 @@ def run():
 
         model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
         optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
-        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, config.total_steps)
+        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
         num_labels = config.num_labels
         cuda = torch.cuda.is_available()
         if cuda:

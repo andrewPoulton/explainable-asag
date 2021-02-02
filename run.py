@@ -1,19 +1,11 @@
 import dataset
 import training
 import configs
-import utils
 import transformers
-from transformers import AutoModelForSequenceClassification
-from torch.utils.data import SequentialSampler, RandomSampler, BatchSampler, DataLoader
-from types import SimpleNamespace
 import fire
 import torch
-from pathlib import Path
+#import utils
 
-
-import os
-import utils
-import fire
 
 
 def run():
@@ -33,23 +25,27 @@ def run():
 ### RuntimeError: shape '[-1, 2]' is invalid for input of size 1
    ]
    for  experiment in [e for e in  configs.list_experiments() if e not in failing]:
+
+        train_percent = 1 # for testing the training cycle locally
+        total_steps = 64
         config = configs.load(experiment)
-        data_train = dataset.SemEvalDataset(data_file = 'data/flat_semeval5way_train.csv', vocab_file = config.model_path,
-                                            train_percent = 0.001) # for rapid testing... change back to 100
+        loader = dataset.dataloader(
+               data_file = 'data/flat_semeval5way_train.csv',
+               data_source = "scientsbank",
+               vocab_file = config.model_path,
+               num_labels = config.num_labels,
+               train_percent = train_percent,
+               val_mode = False,
+               random = True,
+               batch_size = config.batch_size,
+               drop_last = False,
+               num_workers = 0) #num_workers = 4 gives error on my mac, cannot pickle local function
 
-        sampler = RandomSampler(data_train)
-        batch_sampler = BatchSampler(sampler, batch_size = 1, drop_last=False)
-        loader = DataLoader(data_train, batch_sampler=batch_sampler, collate_fn=data_train.collater,
-                            num_workers = 0) # Change to i > 0 for multi-processing, I ran into error on my mac
-
-        model = AutoModelForSequenceClassification.from_pretrained(config.model_path)
-
-        optimizer = torch.optim.Adam(model.parameters(), lr = 1e-5)
-        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, 1, 1)
-        cuda  = False
-
-        num_labels= 2
-        total_steps = 2
+        model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
+        optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
+        lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, config.warmup_steps, total_steps)
+        cuda = torch.cuda.is_available()
+        num_labels = config.num_labels
         training.train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda)
 
 

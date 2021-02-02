@@ -8,6 +8,8 @@ LEARN_RATE = 1e-5
 EPOCHS = 24
 WARMUP_STEPS = 1024
 SEQUENCE_LENGTH = 512
+NUM_LABELS = 2
+BATCH_SIZE = 4
 
 
 # default config (overwritten by CONFIGS)
@@ -18,7 +20,9 @@ DEFAULT_CONFIG = {
     "learn_rate" : LEARN_RATE,
     "epochs" : EPOCHS,
     "warmup_steps" : WARMUP_STEPS,
-    "sequence_length" : SEQUENCE_LENGTH
+    "sequence_length" : SEQUENCE_LENGTH,
+    "num_labels" : NUM_LABELS,
+    "batch_size" : BATCH_SIZE
 }
 
 

@@ -14,7 +14,7 @@ def run():
       'roberta-base',
       'roberta-large',
       'albert-base',
-       'albert-large',
+      'albert-large',
       'distilbert-base-uncased',
       'distilroberta',
       'distilbert-base-squad2',
@@ -34,7 +34,7 @@ def run():
         batch_size = 8
         warmup_steps = 64
         learn_rate = 1e-5
-        train_percent = 100
+        train_percent = 1
         total_steps = 10000
 
         loader = dataset.dataloader(

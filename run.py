@@ -25,13 +25,14 @@ def run():
       ######## "distilroberta-base-stsb"
     ]
     for  experiment in  experiments:
+
+        config = configs.load(experiment)
         # mode to configs when decided on values
         batch_size = 32
         learn_rate = 1e-5
         train_percent = 5
         total_steps = config.total_steps
 
-        config = configs.load(experiment)
         loader = dataset.dataloader(
             data_file = 'data/flat_semeval5way_train.csv',
             data_source = "scientsbank",

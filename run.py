@@ -28,9 +28,9 @@ def run():
     ]
     for  experiment in  experiments:
         # mode to configs when decided on values
-        batch_size = 32
+        batch_size = 64
         learn_rate = 1e-5
-        train_percent = 1
+        train_percent = 5
 
         config = configs.load(experiment)
         loader = dataset.dataloader(

@@ -29,6 +29,7 @@ import os
 # ]`
 
 def run(experiment):
+    save = False
     log = True
     if log:
         wandb.init(project = 'explainable-asag', group = 'SAS-AIED2020-cc' , name = experiment)
@@ -95,16 +96,16 @@ def run(experiment):
             log_line = f'precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
             print(log_line[:-1])
             print('av_epoch_loss', av_epoch_loss)
-            if log and f1 > best_f1:
-                print("saving to: ", os.path.join(log_model_dir, f'full_bert_model_best_acc.pt'))
-                torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_best_f1.pt'))
-                wandb.save('*.pt')
-                best_f1 = f1
-                patience = max((0, patience-1))
-            elif log:
-                patience +=1
-                if patience >= 3:
-                    break
+            # if save and f1 > best_f1:
+            #     print("saving to: ", os.path.join(log_model_dir, f'full_bert_model_best_acc.pt'))
+            #     torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_best_f1.pt'))
+            #     wandb.save('*.pt')
+            #     best_f1 = f1
+            #     patience = max((0, patience-1))
+            # elif save:
+            #     patience +=1
+            #     if patience >= 3:
+            #         break
             if av_epoch_loss < .2:
                 break
         if log:

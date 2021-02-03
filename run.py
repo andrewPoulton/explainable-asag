@@ -27,7 +27,7 @@ def run(experiment):
     # ]
     log = True
     if log:
-        wandb.init(project = 'explainable-asag', group = experiment)
+        wandb.init(project = 'explainable-asag', group = 'test-1-epoch' , name = experiment)
     config = configs.load(experiment)
     # mode to configs when decided on values
     batch_size = 8

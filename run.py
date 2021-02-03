@@ -45,7 +45,7 @@ def run(experiment):
     train_percent = 100
     val_percent = 100
     num_workers = 4
-    total_steps = 10000
+    total_steps = 100000
     num_labels = 2
     max_epochs = 24
 
@@ -96,19 +96,19 @@ def run(experiment):
             log_line = f'precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
             print(log_line[:-1])
             print('av_epoch_loss', av_epoch_loss)
-            # if save and f1 > best_f1:
-            #     print("saving to: ", os.path.join(log_model_dir, f'full_bert_model_best_acc.pt'))
-            #     torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_best_f1.pt'))
-            #     wandb.save('*.pt')
-            #     best_f1 = f1
-            #     patience = max((0, patience-1))
-            # elif save:
-            #     patience +=1
-            #     if patience >= 3:
-            #         break
+            if save and f1 > best_f1:
+                print("saving to: ", os.path.join(log_model_dir, f'full_bert_model_best_acc.pt'))
+                # torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_best_f1.pt'))
+                # wandb.save('*.pt')
+                best_f1 = f1
+                patience = max((0, patience-1))
+            elif save:
+                patience +=1
+                if patience >= 3:
+                    break
             if av_epoch_loss < .2:
                 break
-        if log:
+        if save:
             torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_{lr_scheduler.last_epoch}_steps.pt'))
         # Move stuff off the gpu
         model.cpu()

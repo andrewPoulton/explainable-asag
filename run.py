@@ -7,7 +7,7 @@ import torch
 import wandb
 #import utils
 
-def run():
+def run(experiment):
     # experiments =[
     #   'bert-base',
     #   'bert-large',

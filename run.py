@@ -31,7 +31,7 @@ import os
 def run(experiment):
     log = True
     if log:
-        wandb.init(project = 'explainable-asag', group = 'test-1-epoch' , name = experiment)
+        wandb.init(project = 'explainable-asag', group = 'SAS-AIED2020-cc' , name = experiment)
         #log_model_dir = wandb.run.dir
         log_model_dir = os.path.join('models', experiment)
         if not os.path.exists(log_model_dir):

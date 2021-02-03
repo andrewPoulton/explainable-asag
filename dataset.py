@@ -167,7 +167,7 @@ def dataloader(data_file = 'data/flat_semeval5way_train.csv',
     data.set_data_source(data_source)
     print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
     if val_mode:
-        data.to_val_mode
+        data.to_val_mode(data_source, 'answer')
     sampler = RandomSampler(data) if random else SequentialSampler(data)
     batch_sampler = BatchSampler(sampler, batch_size = batch_size, drop_last=drop_last)
     loader = DataLoader(data, batch_sampler=batch_sampler, collate_fn=data.collater, num_workers = num_workers)

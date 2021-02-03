@@ -1,4 +1,4 @@
-#! bin/bash
+#! /bin/bash
 python run.py --experiment 'bert-base'
 python run.py --experiment 'bert-large'
 python run.py --experiment 'roberta-base'

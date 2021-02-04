@@ -20,6 +20,7 @@ with warnings.catch_warnings():
 
 def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log = False):
     loss_fn = torch.nn.CrossEntropyLoss()
+    model.train()
     with tqdm(total=len(loader.batch_sampler)) as pbar:
         epoch_loss = 0.
         for i, batch in enumerate(loader):

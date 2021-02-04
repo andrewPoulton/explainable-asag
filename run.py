@@ -85,6 +85,7 @@ def run(experiment):
         #while lr_scheduler.last_epoch <= total_steps:
         while epoch < max_epochs:
             epoch += 1
+            print('experiment:', experiment, 'epoch:', epoch)
             av_epoch_loss =  training.train_epoch(train_dataloader,model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log = log)
             #tidy stuff up every epoch
             gc.collect()
@@ -103,10 +104,10 @@ def run(experiment):
                     torch.save([model.state_dict(), config.__dict__], model_path)
                     wandb.save('*.pt')
                 best_f1 = f1
-                patience = max((0, patience-1))
-            elif save:
+                patience = 0 #max((0, patience-1))
+            else:
                 patience +=1
-                if patience >= 5:
+                if patience >= 3:
                     break
         # Move stuff off the gpu
         model.cpu()

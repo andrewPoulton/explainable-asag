@@ -1,34 +1,18 @@
 from warnings import warn
 from types import SimpleNamespace
 
-# global config variables
-TRAIN_BATCH_SIZE = 8
-ACCUMULATION_STEPS = 4
-LEARN_RATE = 1e-5
-EPOCHS = 24
-WARMUP_STEPS = 1024
-SEQUENCE_LENGTH = 512
-NUM_LABELS = 2
-BATCH_SIZE = 4
-TOTAL_STEPS = 10000
-
-
-# default config (overwritten by CONFIGS)
 DEFAULT_CONFIG = {
     "model_path" : "bert-base-uncased",
-    "train_batch_size" : TRAIN_BATCH_SIZE,
-    "accumulation_steps" : ACCUMULATION_STEPS,
-    "learn_rate" : LEARN_RATE,
-    "epochs" : EPOCHS,
-    "warmup_steps" : WARMUP_STEPS,
-    "sequence_length" : SEQUENCE_LENGTH,
-    "num_labels" : NUM_LABELS,
-    "batch_size" : BATCH_SIZE,
-    "total_steps": TOTAL_STEPS
+    "learn_rate" : 1e-5,
+    "max_epochs" : 24,
+    "warmup_steps" : 1024,
+#    "sequence_length" : 512,
+    "num_labels" : 2,
+    "batch_size" : 8,
+    "total_steps": 8192,
+    "num_labels" : 2
 }
 
-
-# configs for experiments
 CONFIGS = {
 ## size variation
 #1

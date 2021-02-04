@@ -29,27 +29,25 @@ import os
 # ]`
 
 def run(experiment):
-    save = False
-    log = True
-    if log:
-        wandb.init(project = 'explainable-asag', group = 'SAS-AIED2020-cc' , name = experiment)
-        #log_model_dir = wandb.run.dir
-        log_model_dir = os.path.join('models', experiment)
-        if not os.path.exists(log_model_dir):
-            os.makedirs(log_model_dir)
-
     config = configs.load(experiment)
-    batch_size = 8
-    warmup_steps = 1024
-    learn_rate = 1e-5
+    batch_size = config.batch_size
+    warmup_steps = config.warmup_steps
+    learn_rate = config.learn_rate
+    total_steps = config.total_steps
+    max_epochs = config.max_epochs
+    num_labels = 2
     train_percent = 100
     val_percent = 100
     num_workers = 4
-    total_steps = 100000
-    num_labels = 2
-    max_epochs = 24
+    log = True
+    
+    if log:
+        wandb.init(project = 'explainable-asag',
+                   group = 'full-run' , name = experiment,
+                   config = config)
 
-    model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path)
+    #TODO: Fix to work with num_labels > 2
+    model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path) 
     cuda = torch.cuda.is_available()
     if cuda:
         model.cuda()
@@ -98,20 +96,18 @@ def run(experiment):
             log_line = f'epoch : {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
             print(log_line[:-1])
             print('av_epoch_loss', av_epoch_loss)
-            if save and f1 > best_f1:
-                print("saving to: ", os.path.join(log_model_dir, f'full_bert_model_best_acc.pt'))
-                # torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_best_f1.pt'))
-                # wandb.save('*.pt')
+            if f1 > best_f1:
+                if log:
+                    model_path =  os.path.join(wandb.run.dir, experiment + '-best_f1.pt')
+                    print("saving to: ", model_path)
+                    torch.save([model.state_dict(), config.__dict__], model_path)
+                    wandb.save('*.pt')
                 best_f1 = f1
                 patience = max((0, patience-1))
             elif save:
                 patience +=1
                 if patience >= 3:
                     break
-            if av_epoch_loss < .2:
-                break
-        if save:
-            torch.save([model.state_dict(), config.__dict__], os.path.join(log_model_dir, f'full_bert_model_{lr_scheduler.last_epoch}_steps.pt'))
         # Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
@@ -122,8 +118,8 @@ def run(experiment):
         #return model
 
     except KeyboardInterrupt:
-        # if log:
-        #     wandb.save('*.pt')
+        if log:
+            wandb.save('*.pt')
         #Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now

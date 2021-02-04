@@ -9,7 +9,7 @@ DEFAULT_CONFIG = {
 #    "sequence_length" : 512,
     "num_labels" : 2,
     "batch_size" : 8,
-    "total_steps": 8192,
+    "total_steps": 10000,
     "num_labels" : 2
 }
 

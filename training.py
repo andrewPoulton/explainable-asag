@@ -50,8 +50,8 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, total_steps,
                 wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Learning Rate": optimizer.param_groups[0]['lr']})
             pbar.set_description(f'global_step: {lr_scheduler.last_epoch}| loss: {loss.item():.4f}| acc: {acc*100:.1f}%| epoch_av_loss: {epoch_loss/(i+1):.4f} |')
             pbar.update(1)
-            if lr_scheduler.last_epoch > total_steps:
-                break
+            # if lr_scheduler.last_epoch > total_steps:
+            #     break
         #  move stuff off GPU
         batch.cpu()
         logits = logits.cpu().detach().argmax(-1).squeeze()

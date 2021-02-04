@@ -82,11 +82,11 @@ def run(experiment):
 
     best_f1 = 0.0
     patience = 0
-    num_epochs = 0
+    epoch = 0
     try:
         #while lr_scheduler.last_epoch <= total_steps:
-        while num_epochs < max_epochs:
-            num_epochs += 1
+        while epoch < max_epochs:
+            epoch += 1
             av_epoch_loss =  training.train_epoch(train_dataloader,model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log = log)
             #tidy stuff up every epoch
             gc.collect()
@@ -95,7 +95,7 @@ def run(experiment):
             p,r,f1,val_acc = validation.val_loop(model, val_dataloader, cuda)
             if log:
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
-            log_line = f'precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
+            log_line = f'epoch : {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
             print(log_line[:-1])
             print('av_epoch_loss', av_epoch_loss)
             if save and f1 > best_f1:

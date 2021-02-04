@@ -106,7 +106,7 @@ def run(experiment):
                 patience = max((0, patience-1))
             elif save:
                 patience +=1
-                if patience >= 3:
+                if patience >= 5:
                     break
         # Move stuff off the gpu
         model.cpu()

@@ -45,6 +45,13 @@ def run(experiment):
         wandb.init(project = 'explainable-asag',
                    group = 'full-run' , name = experiment,
                    config = config)
+        try:
+            with open('latest_wandb_dir.txt', 'r') as file:
+                latest_wandb_dir = file.read()
+                os.removedirs(latest_wandb_dir)
+        except:
+            pass
+        
 
     #TODO: Fix to work with num_labels > 2
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path) 
@@ -115,6 +122,8 @@ def run(experiment):
         optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
+        with open('latest_wandb_dir.txt', 'w') as file:
+            file.write(wandb.run.dir)
         return None        # returning model gives error
         #return model
 

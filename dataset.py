@@ -13,6 +13,7 @@ import xml.etree.ElementTree as et
 import pandas as pd
 import torch
 import re
+import configuration
 
 def pad_tensor_batch(tensors, pad_token = 0):
     max_length = max([t.size(0) for t in tensors])
@@ -157,12 +158,20 @@ class SemEvalDataset(Dataset):
 
 
 
-def dataloader(data_file = 'data/flat_semeval5way_train.csv',
-               data_source = "scientsbank",
-               vocab_file = 'bert-base-uncased',
-               num_labels = 2, train_percent = 100,
-               val_mode = False, batch_size = 4, 
-               drop_last = False, num_workers = 0):
+def dataloader(**config):
+    # defualt configurations can be found in the config files
+    default = configuration.load()
+    data_file = config['data_file'] if 'data_file' in config.keys() else default.train_data
+    data_source = config['data_source'] if 'data_source' in config.keys() else default.data_source
+    vocab_file = config['model_name'] if 'model_name' in config.keys() else default.model_name
+    num_labels = config['num_labels'] if 'num_labels' in config.keys() else default.num_labels
+    train_percent = config['train_percent'] if 'train_percent' in config.keys() else default.train_percent
+    batch_size = config['batch_size'] if 'batch_size' in config.keys() else default.batch_size
+    drop_last = config['drop_last'] if 'drop_last' in config.keys() else default.drop_last
+    num_workers = config['num_workers'] if 'num_workers' in config.keys() else default.num_workers
+    data_val_origin = config['data_val_origin'] if 'data_val_origin' in config.keys() else default.data_val_origin
+    val_mode = config['val_mode'] if 'val_mode' in config.keys() else False
+    # now we define the dataloader
     data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
     data.set_data_source(data_source)
     print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")

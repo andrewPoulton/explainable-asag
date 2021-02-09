@@ -23,5 +23,3 @@ do
         wandb sync --sync-all --clean
     done
 done
-
-sudo shutdown now

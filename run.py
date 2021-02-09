@@ -1,114 +1,79 @@
 import dataset
 import training
 import validation
-import configs
+import configuration
 import transformers
 import fire
 import torch
 import wandb
 import gc
 import os
-#import utils
 
-# experiments =[
-#     'bert-base',
-#     'bert-large',
-#     'roberta-base',
-#     'roberta-large',
-#     'albert-base',
-#     'albert-large',
-#     'distilbert-base-uncased',
-#     'distilroberta',
-#     'distilbert-base-squad2',
-#     'roberta-base-squad2',
-#     'distilroberta-base-squad2',
-#     'bert-base-squad2',
-#     'albert-base-squad2',
-#   ######## "roberta-large-stsb"
-#   ######## "distilroberta-base-stsb"
-# ]`
-
-def run(experiment):
-    config = configs.load(experiment)
-    batch_size = config.batch_size
-    warmup_steps = config.warmup_steps
-    learn_rate = config.learn_rate
-    total_steps = config.total_steps
-    max_epochs = config.max_epochs
-    num_labels = 2
-    train_percent = 100
-    val_percent = 100
-    num_workers = 4
-    log = True
-    
-    if log:
+def run(*configs):
+    config = configuration.load(*configs)
+    if config.log:
         wandb.init(project = 'explainable-asag',
-                   group = 'full-run' , name = experiment,
+                   group = config.group + '-scratch' if config.from_scratch else config.group,
+                   name = config.name + '-scratch' if config.from_scratch else config.name,
                    config = config)
-        try:
-            with open('latest_wandb_dir.txt', 'r') as file:
-                latest_wandb_dir = file.read()
-                os.removedirs(latest_wandb_dir)
-        except:
-            pass
-        
+        config = wandb.config
 
-    #TODO: Fix to work with num_labels > 2
-    model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_path) 
+    model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)
+
+    if config.from_scratch:
+        model.init_weights()
+
     cuda = torch.cuda.is_available()
     if cuda:
         model.cuda()
 
     train_dataloader = dataset.dataloader(
-        data_file = 'data/flat_semeval5way_train.csv',
-        data_source = "scientsbank",
-        vocab_file = config.model_path,
-        num_labels = num_labels,
-        train_percent = train_percent,
         val_mode = False,
-        random = True,
-        batch_size = batch_size,
-        drop_last = False,
-        num_workers = num_workers)
+        data_file = config.train_data,
+        data_source = config.data_source,
+        vocab_file = config.model_name,
+        num_labels = config.num_labels,
+        train_percent = config.train_percent,
+        batch_size = config.batch_size,
+        drop_last = config.drop_last,
+        num_workers = config.num_workers)
     val_dataloader = dataset.dataloader(
-        data_file = 'data/flat_semeval5way_test.csv',
-        data_source = "scientsbank",
-        vocab_file = config.model_path,
-        num_labels = num_labels,
-        train_percent = val_percent,
         val_mode = True,
-        random = True,
-        batch_size = batch_size,
-        drop_last = False,
-        num_workers = num_workers)
+        data_file = config.val_data,
+        data_source = config.data_source,
+        vocab_file = config.model_name,
+        num_labels = config.num_labels,
+        train_percent = config.val_percent,
+        batch_size = config.batch_size,
+        drop_last = config.drop_last,
+        num_workers = config.num_workers)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
-    lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, warmup_steps, total_steps)
+    optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
+    lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, config.warmup_steps, config.total_steps)
 
     best_f1 = 0.0
     patience = 0
     epoch = 0
     try:
         #while lr_scheduler.last_epoch <= total_steps:
-        while epoch < max_epochs:
+        while epoch < config.max_epochs:
             epoch += 1
-            print('experiment:', experiment, 'epoch:', epoch)
-            av_epoch_loss =  training.train_epoch(train_dataloader,model, optimizer, lr_scheduler, num_labels, total_steps, cuda, log = log)
+            av_epoch_loss =  training.train_epoch(train_dataloader,model, optimizer, lr_scheduler, config.num_labels, config.total_steps, cuda, log = config.log)
             #tidy stuff up every epoch
             gc.collect()
             torch.cuda.empty_cache()
 
             p,r,f1,val_acc = validation.val_loop(model, val_dataloader, cuda)
-            if log:
+            if config.log:
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
-            log_line = f'epoch : {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
+            log_line = f'epoch: {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
             print(log_line[:-1])
             print('av_epoch_loss', av_epoch_loss)
             if f1 > best_f1:
-                if log:
-                    model_path =  os.path.join(wandb.run.dir, experiment + '-best_f1.pt')
-                    print("saving to: ", model_path)
-                    torch.save([model.state_dict(), config.__dict__], model_path)
+                if config.log:
+                    this_model =  os.path.join(wandb.run.dir,config.name + '-best_f1.pt')
+                    print("saving to: ", this_model_name)
+                    torch.save([model.state_dict(), config.__dict__], this_model)
                     wandb.save('*.pt')
                 best_f1 = f1
                 patience = 0 #max((0, patience-1))
@@ -119,24 +84,21 @@ def run(experiment):
         # Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
-        optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
-        with open('latest_wandb_dir.txt', 'w') as file:
-            file.write(wandb.run.dir)
-        return None        # returning model gives error
-        #return model
+        #return model   #Gives Error, no iputs
 
     except KeyboardInterrupt:
-        if log:
+        if config.log:
             wandb.save('*.pt')
         #Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
-        optimizer = torch.optim.Adam(model.parameters(), lr = learn_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
-        #return model
+        #return model    #Gives Error, no iputs
 
 
 if __name__ == '__main__':

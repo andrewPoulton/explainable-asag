@@ -1,0 +1,9 @@
+minitest:
+    train_percent: 1
+    val_percent: 1
+    num_workers: 0
+    max_epochs: 1
+    log: False
+
+log:
+    log: True

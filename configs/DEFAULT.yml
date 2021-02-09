@@ -1,0 +1,19 @@
+DEFAULT:
+    model_name: bert-base-uncased
+    data_source: scientsbank
+    data_val_origin: answer
+    learn_rate: 1.e-5
+    max_epochs: 24
+    warmup_steps: 1024
+    num_labels: 2
+    batch_size: 8
+    total_steps: 10000
+    train_percent: 100
+    val_percent: 100
+    num_labels: 2
+    num_workers: 4
+    drop_last: False
+    log: True
+    name: null
+    group: null
+    from_scratch: False

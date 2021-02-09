@@ -12,8 +12,8 @@ DEFAULT:
     val_percent: 100
     num_labels: 2
     num_workers: 4
+    group: group
     drop_last: False
     log: True
     name: null
-    group: null
     from_scratch: False

@@ -13,13 +13,14 @@ declare -a Models=(
 "distilroberta-base-squad2"
 "bert-base-squad2"
 "albert-base-squad2")
-for model in $Models
+
+for g in 1 2 3
 do
-    for g in 1 2 3
+    for model in $Models
     do
-        python run.py $model --group $g
-        wandb sync --sync-all --clean
-        python run.py $model from_scratch --group $g
-        wandb sync --sync-all --clean
+        python run.py "$model" "$@" --group $g
+        wandb sync --sync-all
+        wandb sync --clean
+        rm -r wandb
     done
 done

@@ -4,6 +4,13 @@ minitest:
     num_workers: 0
     max_epochs: 1
     log: False
+    group: test
 
 log:
     log: True
+
+from_scratch:
+    from_scratch: True
+
+test:
+  group: test

@@ -8,22 +8,38 @@ import torch
 import wandb
 import gc
 import os
+from datetime import datetime
+
+def log_local(text):
+    now = datetime.now().strftime('%Y/%m/%d-%H:%M:%S: ')
+    with open('log.txt', 'a') as file:
+        file.write(now + text)
+
 
 def run(*configs, group = None):
     config = configuration.load(*configs)
     if group:
-        config.group = 'group-' + str(group)
+        config.group = config.group + "-" + str(group)
+    if config.from_scratch:
+        cofig.group = 'scratch-' + config.group
+        config.name = 'scratch-' + config.name
     if config.log:
         wandb.init(project = 'explainable-asag',
-                   group = config.group + '-scratch' if config.from_scratch else config.group,
-                   name = config.name + '-scratch' if config.from_scratch else config.name,
+                   group = config.group,
+                   name = config.name,
                    config = config)
         config = wandb.config
+        with open('log.txt', 'a') as file:
+            file.write('-'*50 + '\n\n')
+        log_local(f'Start run {config.name} in group {config.group}. Load model.\n')
+
 
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)
 
     if config.from_scratch:
         model.init_weights()
+        if config.log:
+            log_local('From scratch!!! Init weights.\n')
 
     cuda = torch.cuda.is_available()
     if cuda:
@@ -66,22 +82,23 @@ def run(*configs, group = None):
             torch.cuda.empty_cache()
 
             p,r,f1,val_acc = validation.val_loop(model, val_dataloader, cuda)
+            log_line = f'model: {config.model_name} | epoch: {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f} | av_epoch_loss {av_epoch_loss:.5f}\n'
+            print(log_line[:-1])
             if config.log:
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
-            log_line = f'epoch: {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f}\n'
-            print(log_line[:-1])
-            print('av_epoch_loss', av_epoch_loss)
+                log_local(log_line)
             if f1 > best_f1:
                 if config.log:
                     this_model =  os.path.join(wandb.run.dir,config.name + '-best_f1.pt')
                     print("saving to: ", this_model)
                     torch.save([model.state_dict(), config.__dict__], this_model)
                     wandb.save('*.pt')
+                    log_local('Best f1!!! Save model.\n')
                 best_f1 = f1
                 patience = 0 #max((0, patience-1))
             else:
                 patience +=1
-                if patience >= 3:
+                if patience >= 5:
                     break
         # Move stuff off the gpu
         model.cpu()
@@ -89,6 +106,8 @@ def run(*configs, group = None):
         optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
+        if config.log:
+            log_local('Done!!! Up to the next run.\n\n')
         #return model   #Gives Error, no iputs
 
     except KeyboardInterrupt:
@@ -100,6 +119,8 @@ def run(*configs, group = None):
         optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
+        if config.log:
+            log_local('KeyboardInterrupt!!! Run aborted.\n\n')
         #return model    #Gives Error, no iputs
 
 

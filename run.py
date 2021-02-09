@@ -30,7 +30,7 @@ def run(*configs, group = None):
                    config = config)
         config = wandb.config
         with open('log.txt', 'a') as file:
-            file.write('-'*50 + '\n\n')
+            file.write('-'*50 + '\n')
         log_local(f'Start run {config.name} in group {config.group}. Load model.\n')
 
 
@@ -38,8 +38,6 @@ def run(*configs, group = None):
 
     if config.from_scratch:
         model.init_weights()
-        if config.log:
-            log_local('From scratch!!! Init weights.\n')
 
     cuda = torch.cuda.is_available()
     if cuda:
@@ -93,7 +91,6 @@ def run(*configs, group = None):
                     print("saving to: ", this_model)
                     torch.save([model.state_dict(), config.__dict__], this_model)
                     wandb.save('*.pt')
-                    log_local('Best f1!!! Save model.\n')
                 best_f1 = f1
                 patience = 0 #max((0, patience-1))
             else:
@@ -106,8 +103,6 @@ def run(*configs, group = None):
         optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
-        if config.log:
-            log_local('Done!!! Up to the next run.\n\n')
         #return model   #Gives Error, no iputs
 
     except KeyboardInterrupt:
@@ -120,7 +115,7 @@ def run(*configs, group = None):
         gc.collect()
         torch.cuda.empty_cache()
         if config.log:
-            log_local('KeyboardInterrupt!!! Run aborted.\n\n')
+            log_local('KeyboardInterrupt!!! Run aborted.\n')
         #return model    #Gives Error, no iputs
 
 

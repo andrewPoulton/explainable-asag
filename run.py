@@ -74,7 +74,7 @@ def run(*configs, group = None):
             if f1 > best_f1:
                 if config.log:
                     this_model =  os.path.join(wandb.run.dir,config.name + '-best_f1.pt')
-                    print("saving to: ", this_model_name)
+                    print("saving to: ", this_model)
                     torch.save([model.state_dict(), config.__dict__], this_model)
                     wandb.save('*.pt')
                 best_f1 = f1

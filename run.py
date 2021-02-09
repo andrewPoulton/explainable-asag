@@ -21,7 +21,7 @@ def run(*configs, group = None):
     if group:
         config.group = config.group + "-" + str(group)
     if config.from_scratch:
-        cofig.group = 'scratch-' + config.group
+        config.group = 'scratch-' + config.group
         config.name = 'scratch-' + config.name
     if config.log:
         wandb.init(project = 'explainable-asag',

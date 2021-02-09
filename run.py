@@ -9,8 +9,10 @@ import wandb
 import gc
 import os
 
-def run(*configs):
+def run(*configs, group = None):
     config = configuration.load(*configs)
+    if group:
+        config.group = 'group-' + str(group)
     if config.log:
         wandb.init(project = 'explainable-asag',
                    group = config.group + '-scratch' if config.from_scratch else config.group,

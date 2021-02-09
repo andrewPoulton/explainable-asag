@@ -1,27 +1,26 @@
 #! /bin/bash
-python run.py --experiment 'bert-base'
-wandb sync --sync-all --clean
-python run.py --experiment 'bert-large'
-wandb sync --sync-all --clean
-python run.py --experiment 'roberta-base'
-wandb sync --sync-all --clean
-python run.py --experiment 'roberta-large'
-wandb sync --sync-all --clean
-python run.py --experiment 'albert-base'
-wandb sync --sync-all --clean
-python run.py --experiment 'albert-large'
-wandb sync --sync-all --clean
-python run.py --experiment 'distilbert-base-uncased'
-wandb sync --sync-all --clean
-python run.py --experiment 'distilroberta'
-wandb sync --sync-all --clean
-python run.py --experiment 'distilbert-base-squad2'
-wandb sync --sync-all --clean
-python run.py --experiment 'roberta-base-squad2'
-wandb sync --sync-all --clean
-python run.py --experiment 'distilroberta-base-squad2'
-wandb sync --sync-all --clean
-python run.py --experiment 'bert-base-squad2'
-wandb sync --sync-all --clean
-python run.py --experiment 'albert-base-squad2'
-wandb sync --sync-all --clean
+for model in
+bert-base
+bert-large
+roberta-base
+roberta-large
+albert-base
+albert-large
+distilbert-base
+distilroberta
+distilbert-base-squad2
+roberta-base-squad2
+distilroberta-base-squad2
+bert-base-squad2
+albert-base-squad2
+do
+    for g in 1 2 3
+    do
+        python run.py $model --group $g
+        wandb sync --sync-all --clean
+        python run.py $model from_scratch --group $g
+        wandb sync --sync-all --clean
+    done
+done
+
+sudo shutdown now

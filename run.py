@@ -64,7 +64,7 @@ def run(*configs, group = None):
         drop_last = config.drop_last,
         num_workers = config.num_workers)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
+    optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
     lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, config.warmup_steps, config.total_steps)
 
     best_f1 = 0.0

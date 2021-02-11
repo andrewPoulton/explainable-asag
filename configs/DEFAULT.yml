@@ -18,3 +18,4 @@ DEFAULT:
     name: null
     from_scratch: False
     max_patience: 5
+    optimizer: Adam

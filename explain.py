@@ -1,11 +1,3 @@
-## Implement:
-## TODO: inputxgrad
-## TODO: inputXgradient
-## WAIT: occlusion
-## TODO: saliency
-## TODO: integrated gradients
-
-
 import fire
 import numpy as np
 
@@ -19,14 +11,6 @@ import captum.attr as attributions
 #     InputXGradient)
 from configuration import load_configs_from_file
 import dataset
-
-def construct_ref_ids(input_ids, cls_token_id = 101, sep_token_id = 102, ref_token_id = 0):
-    ref_ids = torch.zeros_like(input_ids)
-    if ref_token_id !=0:
-        ref_ids.fill_(ref_token_id)
-    ref_ids[input_ids==cls_token_id] = cls_token_id
-    ref_ids[input_ids==sep_token_id] = sep_token_id
-    return ref_ids
 
 __CUDA__ = torch.cuda.is_available()
 

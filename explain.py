@@ -83,7 +83,7 @@ def explain_batch(attibution_method, model, batch, **kwargs):
     return attr.detach()
 
 def explain_validation_data(model_path, attribution_method, config):
-    val_dataloader = dataset.dataloader(data_file = "data/test.csv", val_mode = True, batch_size = 1, num_workers = 1, data_source="beetle")
+    val_dataloader = dataset.dataloader(val_mode = True, batch_size = 1, num_workers = 1, data_source="beetle")
     model = load_model_from_disk(model_path)
     model.eval()
     ordered_tokens = []
@@ -91,7 +91,7 @@ def explain_validation_data(model_path, attribution_method, config):
     for batch in val_dataloader:
         attr = explain_batch(attribution_method, model, batch, **config)
         _, ranked_tokens = rank_tokens_by_attribution(batch, attr, **config)
-        print(ranked_tokens)
+        # print(ranked_tokens)
     return ordered_tokens
 
 if __name__=='__main__':

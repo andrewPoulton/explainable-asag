@@ -2,7 +2,10 @@ EXPLAIN:
   IntegratedGradients :
     n_steps : 200
     baselines : True
+
   InputXGradient : 
+
+  Saliency : 
 
   GradientShap :
     baselines : True

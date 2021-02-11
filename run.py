@@ -10,11 +10,7 @@ import gc
 import os
 from datetime import datetime
 import sys
-import logging
 import json
-
-def  now():
-    return datetime.now().strftime('%Y/%m/%d-%H:%M:%S: ')
 
 ### From: https://discuss.pytorch.org/t/moving-optimizer-from-cpu-to-gpu/96068/3
 def optimizer_to_cpu(optim):
@@ -45,9 +41,6 @@ def run(*configs, group = None):
                    name = config.name,
                    config = config)
         config = wandb.config
-        logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.INFO)
-        logging.info(f'Start group {config.group} run {config.name} with configs ' + ' '.join(configs))
-
 
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)
 
@@ -79,9 +72,15 @@ def run(*configs, group = None):
         drop_last = config.drop_last,
         num_workers = config.num_workers)
 
-    optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
+    optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate, **config.optimizer_kwargs)
 
-    lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, config.warmup_steps, config.total_steps)
+    # Hack to get any scheduler we want. transformers.get_scheduler does not implement e.g. linear_with_warmup.
+    get_scheduler = {
+        'linear_with_warmup': transformers.get_linear_schedule_with_warmup,
+        'cosine_with_warmup': transformers.get_cosine_schedule_with_warmup,
+        'constant_with_warmup': transformers.get_constant_schedule_with_warmup,
+        'cosine_with_hard_restarts_with_warmup': transformers.get_cosine_with_hard_restarts_schedule_with_warmup}
+    lr_scheduler = get_scheduler[config.scheduler](optimizer, config.warmup_steps, config.total_steps)
 
     best_f1 = 0.0
     patience = 0
@@ -91,17 +90,16 @@ def run(*configs, group = None):
         #while lr_scheduler.last_epoch <= total_steps:
         while epoch < config.max_epochs:
             epoch += 1
-            av_epoch_loss =  training.train_epoch(train_dataloader,model, optimizer, lr_scheduler, config.num_labels, config.total_steps, cuda, log = config.log)
+            av_epoch_loss =  training.train_epoch(train_dataloader, model, optimizer, lr_scheduler, config.num_labels, config.total_steps, cuda, log = config.log)
             #tidy stuff up every epoch
             gc.collect()
             torch.cuda.empty_cache()
 
             p,r,f1,val_acc = validation.val_loop(model, val_dataloader, cuda)
-            log_line = f'model: {config.model_name} | epoch: {epoch} | precision: {p:.5f} | recall: {r:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f} | av_epoch_loss {av_epoch_loss:.5f}\n'
+            log_line = f'model: {config.model_name} | epoch: {epoch} | av_epoch_loss {av_epoch_loss:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f} \n'
             print(log_line[:-1])
             if config.log:
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
-                logging.debug(log_line)
             if f1 > best_f1:
                 if config.log:
                     this_model =  os.path.join(wandb.run.dir,config.name + '-best_f1.pt')
@@ -122,8 +120,7 @@ def run(*configs, group = None):
         optimizer_to_cpu(optimizer)
         gc.collect()
         torch.cuda.empty_cache()
-        logging.info(f"Finished with:\n" + log_line)
-        #return model   #Gives Error, no iputs
+        #return model   #Gives Error
 
     except KeyboardInterrupt:
         if config.log:
@@ -133,16 +130,7 @@ def run(*configs, group = None):
         optimizer_to_cpu(optimizer)
         gc.collect()
         torch.cuda.empty_cache()
-        #return model    #Gives Error, no iputs
-
-    except Exception as e:
-        if config.log:
-            wandb.save('*.pt')
-        model.cpu()
-        optimizer_to_cpu(optimizer)
-        gc.collect()
-        torch.cuda.empty_cache()
-        logging.error(e)
+        #return model    #Gives Error
 
 
 if __name__ == '__main__':

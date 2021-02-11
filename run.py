@@ -45,7 +45,7 @@ def run(*configs, group = None):
                    name = config.name,
                    config = config)
         config = wandb.config
-        logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.__dict__[config.INFO])
+        logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.INFO)
         logging.info(f'Start group {config.group} run {config.name} with configs ' + ' '.join(configs))
 
 

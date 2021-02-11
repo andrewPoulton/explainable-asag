@@ -28,7 +28,6 @@ def load(*config_ids):
     config = dict()
     for R in REQUIRED:
         config.update(master_config[R])
-        valid_config_ids.remove(R)
     for c in config_ids:
         print(f"Load configs for '{c}'.")
         config.update(master_config[c])

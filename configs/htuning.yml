@@ -5,4 +5,4 @@ htune:
     optimizer: Adam
     learn_rate: 3.e-4
     group: htune
-    batch_size: 4
+    batch_size: 8

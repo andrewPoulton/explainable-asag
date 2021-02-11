@@ -10,11 +10,11 @@ import gc
 import os
 from datetime import datetime
 import sys
+import logging
+import json
 
-def log_local(text):
-    now = datetime.now().strftime('%Y/%m/%d-%H:%M:%S: ')
-    with open('log.txt', 'a') as file:
-        file.write(now + text)
+def  now():
+    return datetime.now().strftime('%Y/%m/%d-%H:%M:%S: ')
 
 ### From: https://discuss.pytorch.org/t/moving-optimizer-from-cpu-to-gpu/96068/3
 def optimizer_to_cpu(optim):
@@ -45,9 +45,9 @@ def run(*configs, group = None):
                    name = config.name,
                    config = config)
         config = wandb.config
-        with open('log.txt', 'a') as file:
-            file.write('-'*50 + '\n')
-        log_local(f'Start run {config.name} in group {config.group}. Load model.\n')
+        logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.INFO)
+        logging.captureWarnings(True)
+        logging.info(f'Start {config.group} run {config.name} with configs ' + [c for c in configs])
 
 
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)
@@ -100,7 +100,7 @@ def run(*configs, group = None):
             print(log_line[:-1])
             if config.log:
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
-                log_local(log_line)
+                logging.debug(log_line)
             if f1 > best_f1:
                 if config.log:
                     this_model =  os.path.join(wandb.run.dir,config.name + '-best_f1.pt')
@@ -131,15 +131,9 @@ def run(*configs, group = None):
         optimizer_to_cpu(optimizer)
         gc.collect()
         torch.cuda.empty_cache()
-        if config.log:
-            log_local('KeyboardInterrupt!!! Run aborted.\n')
         #return model    #Gives Error, no iputs
 
-    else:
-        e = sys.exc_info()[0]
-        print(e)
-        if config.log:
-            log_local(e)
+
 
 if __name__ == '__main__':
     fire.Fire(run)

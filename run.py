@@ -47,7 +47,7 @@ def run(*configs, group = None):
         config = wandb.config
         logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.INFO)
         logging.captureWarnings(True)
-        logging.info(f'Start {config.group} run {config.name} with configs ' + [c for c in configs])
+        logging.info(f'Start {config.group} run {config.name} with configs ' + ' '.join(configs))
 
 
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)

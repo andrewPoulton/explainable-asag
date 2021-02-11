@@ -17,7 +17,7 @@ import captum.attr as attributions
 # from captum.attr import (
 #     IntegratedGradients,
 #     InputXGradient)
-
+from configuration import load_configs_from_file
 import dataset
 
 def construct_ref_ids(input_ids, cls_token_id = 101, sep_token_id = 102, ref_token_id = 0):
@@ -62,13 +62,15 @@ def explainer(model, attribution_method = "IntegratedGradients"):
         return model(inputs_embeds = embeds).logits
     return attribution_method(func)
 
-def rank_tokens_by_attribution(batch, attributes, norm = 2):
+
+def rank_tokens_by_attribution(batch, attributes, norm = 2, **kwargs):
+    norm = kwargs.get("norm", norm)
     rank_order = attributes.norm(norm, dim = -1).argsort().squeeze()
-    ordered_tokens = batch.input.squeeze()[rank_order]
+    ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy().tolist()
     return rank_order, ordered_tokens
 
 def explain_batch(attibution_method, model, batch, **kwargs):
-    kwargs = kwargs.get(attibution_method, {})
+    
     embeds = get_embeds(model, batch.input)
     with torch.no_grad():
         pred = model(inputs_embeds = embeds).logits.squeeze().argmax().item()
@@ -78,24 +80,19 @@ def explain_batch(attibution_method, model, batch, **kwargs):
         baseline = get_baseline(model, batch)
         kwargs["baselines"] = baseline
     attr = exp.attribute(embeds, target = pred, additional_forward_args = model, **kwargs)
-    return attr
+    return attr.detach()
 
-def explain_validation_data():
-    val_dataloader = dataset.dataloader(val_mode = True, batch_size = 1, num_workers = 1)
-
-    for b in val_dataloader:
-        break
-    model = transformers.AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels = 2)
+def explain_validation_data(model_path, attribution_method, config):
+    val_dataloader = dataset.dataloader(data_file = "data/test.csv", val_mode = True, batch_size = 1, num_workers = 1, data_source="beetle")
+    model = load_model_from_disk(model_path)
     model.eval()
-    embeds = get_embeds(model, b.input)
-    baseline = get_baseline(model, b)
-    with torch.no_grad():
-        pred = model(input_embeds = embeds).logits.squeeze().argmax().item()
-
-    exp =  explainer(model)
-    attr = explainer.attribute(embeds, baselines = baseline, target = pred, additional_forward_args = model)
-    return attr
-
+    ordered_tokens = []
+    config = load_configs_from_file(config)["EXPLAIN"].get(attribution_method, {}) or {}
+    for batch in val_dataloader:
+        attr = explain_batch(attribution_method, model, batch, **config)
+        _, ranked_tokens = rank_tokens_by_attribution(batch, attr, **config)
+        print(ranked_tokens)
+    return ordered_tokens
 
 if __name__=='__main__':
     fire.Fire(explain_validation_data)

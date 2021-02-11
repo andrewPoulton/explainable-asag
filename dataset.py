@@ -171,6 +171,8 @@ def dataloader(**config):
     num_workers = config['num_workers'] if 'num_workers' in config.keys() else default.num_workers
     data_val_origin = config['data_val_origin'] if 'data_val_origin' in config.keys() else default.data_val_origin
     val_mode = config['val_mode'] if 'val_mode' in config.keys() else False
+    if val_mode and 'test' not in data_file:
+        data_file = data_file.replace('train', 'test')
     # now we define the dataloader
     data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
     data.set_data_source(data_source)

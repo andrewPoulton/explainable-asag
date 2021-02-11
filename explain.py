@@ -13,10 +13,10 @@ import torch
 import torch.nn as nn
 
 import transformers
-
-from captum.attr import (
-    IntegratedGradients,
-    InputXGradient)
+import captum.attr as attributions
+# from captum.attr import (
+#     IntegratedGradients,
+#     InputXGradient)
 
 import dataset
 
@@ -28,29 +28,73 @@ def construct_ref_ids(input_ids, cls_token_id = 101, sep_token_id = 102, ref_tok
     ref_ids[input_ids==sep_token_id] = sep_token_id
     return ref_ids
 
+__CUDA__ = torch.cuda.is_available()
+
+def load_model_from_disk(path):
+    weights, config = torch.load(path, map_location='cpu')
+    mdl = transformers.AutoModelForSequenceClassification.from_pretrained(config['model_path'])
+    mdl.load_state_dict(weights)
+    return mdl
+
+def get_word_embeddings(module):
+    for attr_str in dir(module):
+        if attr_str == "word_embeddings":
+            return  getattr(module, attr_str)
+
+    for n, ch in module.named_children():
+        embeds = get_word_embeddings(ch)
+        if embeds:
+            return embeds
+
+def get_embeds(model, inputs):
+    return get_word_embeddings(model)(inputs)
+
+def get_baseline(model, batch):
+    baseline_inputs = torch.where(batch.token_type_ids.eq(3), torch.zeros_like(batch.input), batch.input)
+    return get_embeds(model, baseline_inputs)
 
 
-# def explainer(model, attribution_method = IntegratedGradients):
-#     return IntegratedGradients(model)
+
+
+def explainer(model, attribution_method = "IntegratedGradients"):
+    attribution_method = attributions.__dict__[attribution_method]
+    def func(embeds, model):
+        return model(inputs_embeds = embeds).logits
+    return attribution_method(func)
+
+def rank_tokens_by_attribution(batch, attributes, norm = 2):
+    rank_order = attributes.norm(norm, dim = -1).argsort().squeeze()
+    ordered_tokens = batch.input.squeeze()[rank_order]
+    return rank_order, ordered_tokens
+
+def explain_batch(attibution_method, model, batch, **kwargs):
+    kwargs = kwargs.get(attibution_method, {})
+    embeds = get_embeds(model, batch.input)
+    with torch.no_grad():
+        pred = model(inputs_embeds = embeds).logits.squeeze().argmax().item()
+
+    exp =  explainer(model, attibution_method)
+    if kwargs.get("baselines", False):
+        baseline = get_baseline(model, batch)
+        kwargs["baselines"] = baseline
+    attr = exp.attribute(embeds, target = pred, additional_forward_args = model, **kwargs)
+    return attr
 
 def explain_validation_data():
-    val_dataloader = dataset.dataloader(data_file = 'data/mini_test.csv', val_mode = True, batch_size = 1, num_workers = 0)
-    # val_dataloader = dataset.dataloader(
-    #     val_mode = True,
-    #     data_file = config.val_data,
-    #     data_source = config.data_source,
-    #     vocab_file = config.model_name,
-    #     num_labels = config.num_labels,
-    #     train_percent = config.val_percent,
-    #     batch_size = 1,
-    #     drop_last = config.drop_last,
-    #     num_workers = config.num_workers)
-    model = transformers.AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels = 2)
-    # model = torch.load(path_to_model)
-    model.eval()
+    val_dataloader = dataset.dataloader(val_mode = True, batch_size = 1, num_workers = 1)
 
-    explainer =  IntegratedGradients(model)
-    attr = explainer.attribute(inputs = b.input, baselines = ref_ids, target = 0)
+    for b in val_dataloader:
+        break
+    model = transformers.AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels = 2)
+    model.eval()
+    embeds = get_embeds(model, b.input)
+    baseline = get_baseline(model, b)
+    with torch.no_grad():
+        pred = model(input_embeds = embeds).logits.squeeze().argmax().item()
+
+    exp =  explainer(model)
+    attr = explainer.attribute(embeds, baselines = baseline, target = pred, additional_forward_args = model)
+    return attr
 
 
 if __name__=='__main__':

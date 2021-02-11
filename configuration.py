@@ -25,17 +25,13 @@ def load_all_configs():
 
 def load(*config_ids):
     master_config = load_all_configs()
-    valid_config_ids = list(master_config.keys())
     config = dict()
     for R in REQUIRED:
         config.update(master_config[R])
         valid_config_ids.remove(R)
     for c in config_ids:
-        if c in valid_config_ids:
-            print(f"Load configs for '{c}'.")
-            config.update(master_config[c])
-        else:
-            warn(f"Invalid config ID '{c}' is ignored.")
+        print(f"Load configs for '{c}'.")
+        config.update(master_config[c])
     config.update({'train_data': os.path.join(config['data_dir'], config['train_data_file']),
                    'val_data': os.path.join(config['data_dir'], config['val_data_file'])})
     return SimpleNamespace(**config)

@@ -17,3 +17,4 @@ DEFAULT:
     log: True
     name: null
     from_scratch: False
+    max_patience: 5

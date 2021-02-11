@@ -93,9 +93,9 @@ def run(*configs, group = None):
                     wandb.save('*.pt')
                 best_f1 = f1
                 patience = 0 #max((0, patience-1))
-            else:
+            elif config.max_patience:
                 patience +=1
-                if patience >= 5:
+                if patience >= config.max_patience:
                     break
         # Move stuff off the gpu
         model.cpu()

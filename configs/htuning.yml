@@ -1,8 +1,37 @@
 htune:
-    from_scratch: True
-    max_patience: null
-    total_steps: 17000
-    optimizer: Adam
-    learn_rate: 3.e-4
     group: htune
+    max_epochs: 35
+    max_patience: null
+    optimizer: AdamW
+    optimizer_kwargs:
+        weight_decay: 1.e-7
+    learn_rate: 1.e-5
     batch_size: 8
+
+h1:
+    name: h1
+    scheduler: linear_with_warmup
+    scheduler_args:
+        - 2000
+        - 27000
+
+
+
+
+
+h2:
+    name: h2
+    scheduler: cosine_with_warmup
+    scheduler_args:
+        - 2000
+        - 27000
+
+
+
+h3:
+    name: h3
+    name: h2
+    scheduler: cosine_with_warmup
+    scheduler_args:
+        - 2000
+        - 27000

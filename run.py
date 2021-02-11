@@ -80,7 +80,7 @@ def run(*configs, group = None):
         'cosine_with_warmup': transformers.get_cosine_schedule_with_warmup,
         'constant_with_warmup': transformers.get_constant_schedule_with_warmup,
         'cosine_with_hard_restarts_with_warmup': transformers.get_cosine_with_hard_restarts_schedule_with_warmup}
-    lr_scheduler = get_scheduler[config.scheduler](optimizer, config.warmup_steps, config.total_steps)
+    lr_scheduler = get_scheduler[config.scheduler](optimizer, *config.scheduler_args, **config.scheduler_kwargs)
 
     best_f1 = 0.0
     patience = 0
@@ -90,7 +90,7 @@ def run(*configs, group = None):
         #while lr_scheduler.last_epoch <= total_steps:
         while epoch < config.max_epochs:
             epoch += 1
-            av_epoch_loss =  training.train_epoch(train_dataloader, model, optimizer, lr_scheduler, config.num_labels, config.total_steps, cuda, log = config.log)
+            av_epoch_loss =  training.train_epoch(train_dataloader, model, optimizer, lr_scheduler, config.num_labels, cuda, log = config.log)
             #tidy stuff up every epoch
             gc.collect()
             torch.cuda.empty_cache()

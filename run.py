@@ -47,7 +47,7 @@ def run(*configs, group = None):
         config = wandb.config
         logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.INFO)
         logging.captureWarnings(True)
-        logging.info(f'Start {config.group} run {config.name} with configs ' + ' '.join(configs))
+        logging.info(f'Start group {config.group} run {config.name} with configs ' + ' '.join(configs))
 
 
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)
@@ -133,6 +133,14 @@ def run(*configs, group = None):
         torch.cuda.empty_cache()
         #return model    #Gives Error, no iputs
 
+    except Exception as e:
+        if config.log:
+            wandb.save('*.pt')
+        model.cpu()
+        optimizer_to_cpu(optimizer)
+        gc.collect()
+        torch.cuda.empty_cache()
+        logging.error(e)
 
 
 if __name__ == '__main__':

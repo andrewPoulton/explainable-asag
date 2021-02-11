@@ -100,7 +100,7 @@ def run(*configs, group = None):
         # Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
-        optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
+        optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
         #return model   #Gives Error, no iputs

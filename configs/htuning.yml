@@ -15,18 +15,12 @@ h1:
         - 2000
         - 27000
 
-
-
-
-
 h2:
     name: h2
     scheduler: cosine_with_warmup
     scheduler_args:
         - 2000
         - 27000
-
-
 
 h3:
     name: h3

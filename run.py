@@ -9,6 +9,7 @@ import wandb
 import gc
 import os
 from datetime import datetime
+import sys
 
 def log_local(text):
     now = datetime.now().strftime('%Y/%m/%d-%H:%M:%S: ')
@@ -100,6 +101,7 @@ def run(*configs, group = None):
         # Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
+        ### should we do this?: https://discuss.pytorch.org/t/moving-optimizer-from-cpu-to-gpu/96068/3
         optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
@@ -111,13 +113,18 @@ def run(*configs, group = None):
         #Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
-        optimizer = torch.optim.Adam(model.parameters(), lr = config.learn_rate)
+        optimizer = torch.optim..__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
         if config.log:
             log_local('KeyboardInterrupt!!! Run aborted.\n')
         #return model    #Gives Error, no iputs
 
+    else:
+        e = sys.exc_info()[0]
+        print(e)
+        if config.log:
+            log_local(e)
 
 if __name__ == '__main__':
     fire.Fire(run)

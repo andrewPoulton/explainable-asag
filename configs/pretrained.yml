@@ -49,6 +49,3 @@ bert-base-squad2:
 albert-base-squad2:
     name: albert-base-squad2
     model_name: twmkn9/albert-base-v2-squad2
-
-from_scratch:
-    from_scratch: True

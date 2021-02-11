@@ -45,8 +45,7 @@ def run(*configs, group = None):
                    name = config.name,
                    config = config)
         config = wandb.config
-        logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.INFO)
-        logging.captureWarnings(True)
+        logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', level=logging.__dict__[config.INFO])
         logging.info(f'Start group {config.group} run {config.name} with configs ' + ' '.join(configs))
 
 
@@ -81,11 +80,13 @@ def run(*configs, group = None):
         num_workers = config.num_workers)
 
     optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
+
     lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, config.warmup_steps, config.total_steps)
 
     best_f1 = 0.0
     patience = 0
     epoch = 0
+    log_line = ''
     try:
         #while lr_scheduler.last_epoch <= total_steps:
         while epoch < config.max_epochs:
@@ -121,6 +122,7 @@ def run(*configs, group = None):
         optimizer_to_cpu(optimizer)
         gc.collect()
         torch.cuda.empty_cache()
+        logging.info(f"Finished with:\n" + log_line)
         #return model   #Gives Error, no iputs
 
     except KeyboardInterrupt:

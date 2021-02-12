@@ -161,16 +161,16 @@ class SemEvalDataset(Dataset):
 def dataloader(**config):
     # defualt configurations can be found in the config files
     default = configuration.load()
-    data_file = config['data_file'] if 'data_file' in config.keys() else default.train_data
-    data_source = config['data_source'] if 'data_source' in config.keys() else default.data_source
-    vocab_file = config['model_name'] if 'model_name' in config.keys() else default.model_name
-    num_labels = config['num_labels'] if 'num_labels' in config.keys() else default.num_labels
-    train_percent = config['train_percent'] if 'train_percent' in config.keys() else default.train_percent
-    batch_size = config['batch_size'] if 'batch_size' in config.keys() else default.batch_size
-    drop_last = config['drop_last'] if 'drop_last' in config.keys() else default.drop_last
-    num_workers = config['num_workers'] if 'num_workers' in config.keys() else default.num_workers
-    data_val_origin = config['data_val_origin'] if 'data_val_origin' in config.keys() else default.data_val_origin
-    val_mode = config['val_mode'] if 'val_mode' in config.keys() else False
+    data_file = config.get('train_data', default.train_data)
+    data_source = config.get('data_source', default.data_source)
+    vocab_file = config.get('model_name', default.model_name)
+    num_labels = config.get('num_labels', default.num_labels)
+    train_percent = config.get('train_percent', default.train_percent)
+    batch_size = config.get('batch_size', default.batch_size)
+    drop_last = config.get('drop_last', default.drop_last)
+    num_workers = config.get('num_workers', default.num_workers)
+    data_val_origin = config.get('data_val_origin', default.data_val_origin)
+    val_mode = config.get('val_mode', False)
     if val_mode and 'test' not in data_file:
         data_file = data_file.replace('train', 'test')
     # now we define the dataloader

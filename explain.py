@@ -1,5 +1,7 @@
 import fire
+import os
 import numpy as np
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -9,16 +11,21 @@ import captum.attr as attributions
 # from captum.attr import (
 #     IntegratedGradients,
 #     InputXGradient)
+from captum.attr import visualization
 from configuration import load_configs_from_file
 import dataset
+import json
+from tqdm import tqdm
 
 __CUDA__ = torch.cuda.is_available()
 
 def load_model_from_disk(path):
     weights, config = torch.load(path, map_location='cpu')
-    mdl = transformers.AutoModelForSequenceClassification.from_pretrained(config['model_path'])
+    config = config['_items']
+    mdl = transformers.AutoModelForSequenceClassification.from_pretrained(config['model_name'])
     mdl.load_state_dict(weights)
-    return mdl
+    print(f"Loaded mode {config['model_name']} from {path} successfully.")
+    return mdl, config
 
 def get_word_embeddings(module):
     for attr_str in dir(module):
@@ -38,45 +45,89 @@ def get_baseline(model, batch):
     return get_embeds(model, baseline_inputs)
 
 
-
-
 def explainer(model, attribution_method = "IntegratedGradients"):
     attribution_method = attributions.__dict__[attribution_method]
     def func(embeds, model):
         return model(inputs_embeds = embeds).logits
     return attribution_method(func)
 
-
 def rank_tokens_by_attribution(batch, attributes, norm = 2, **kwargs):
     norm = kwargs.get("norm", norm)
     rank_order = attributes.norm(norm, dim = -1).argsort().squeeze()
-    ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy().tolist()
+    ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy()[::-1].tolist()
     return rank_order, ordered_tokens
 
+def summarize(attr, norm = 2):
+    attr =  attr.norm(norm, dim = -1).squeeze()
+    # for integrated gradients may want to use instead
+    #attr = attr.sum(dim=-1).squeeze(0)
+    #attr = attr / torch.norm(attr)
+    attr_score = attr.sum()
+    attr_class = 99
+    return attr.cpu().detach().numpy(), attr_class, attr_score.detach().numpy()
+
+
 def explain_batch(attibution_method, model, batch, **kwargs):
-    
     embeds = get_embeds(model, batch.input)
     with torch.no_grad():
-        pred = model(inputs_embeds = embeds).logits.squeeze().argmax().item()
-
+        logits = model(inputs_embeds = embeds).logits.squeeze()
+        pred = logits.argmax().item()
+        pred_prob = torch.nn.functional.softmax(logits, dim=0).max().item()
     exp =  explainer(model, attibution_method)
     if kwargs.get("baselines", False):
         baseline = get_baseline(model, batch)
         kwargs["baselines"] = baseline
-    attr = exp.attribute(embeds, target = pred, additional_forward_args = model, **kwargs)
-    return attr.detach()
+    attr = exp.attribute(embeds, target = pred, additional_forward_args = model,  **kwargs)
+    return attr, pred, pred_prob
 
-def explain_validation_data(model_path, attribution_method, config):
-    val_dataloader = dataset.dataloader(val_mode = True, batch_size = 1, num_workers = 1, data_source="beetle")
-    model = load_model_from_disk(model_path)
+
+def explain(data_file, model_path,  attribution_method, datasource = 'beetle'):
+    train_percent = 10
+    model, config  = load_model_from_disk(model_path)
     model.eval()
-    ordered_tokens = []
-    config = load_configs_from_file(config)["EXPLAIN"].get(attribution_method, {}) or {}
-    for batch in val_dataloader:
-        attr = explain_batch(attribution_method, model, batch, **config)
-        _, ranked_tokens = rank_tokens_by_attribution(batch, attr, **config)
-        # print(ranked_tokens)
-    return ordered_tokens
+    # The data that we will explain
+    kwargs = load_configs_from_file('configs/explain.yml')["EXPLAIN"].get(attribution_method, {}) or {}
+    expl_dataloader = dataset.dataloader(
+        val_mode = True,
+        data_file = data_file,
+        data_source = datasource,
+        vocab_file = config['model_name'],
+        num_labels = 2,
+        train_percent = train_percent,
+        batch_size = 1,
+        drop_last = False,
+        num_workers = 0)
+    tokenizer = expl_dataloader.dataset.tokenizer
+    attr_list = []
+    tokens_list = []
+    label_list = []
+    prob_list = []
+    pred_list = []
+    attr_class_list = []
+    attr_score_list = []
+    # NOTE: This only works for batch_size = 1 and relies on it for now
+    with tqdm(total=len(expl_dataloader.batch_sampler)) as pbar:
+        pbar.set_description(f'Compute attributions:')
+        for batch in expl_dataloader:
+            label = batch.labels.item()
+            attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, **kwargs)
+            attr, attr_class, attr_score = summarize(attr)
+            tokens = tokenizer.decode(batch.input.squeeze())
+            attr_list.append(attr)
+            tokens_list.append(tokens)
+            label_list.append(label)
+            prob_list.append(pred_prob)
+            pred_list.append(pred)
+            attr_class_list.append(attr_class)
+            attr_score_list.append(attr_score)
+            pbar.update(1)
+
+        expl = pd.DataFrame({'attr': attr_list, 'tokens': tokens_list, 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
+                             'attr_score': attr_score_list, 'attr_sclass': attr_class_list})
+        expl.to_pickle(os.path.join('explained', config['name'] + '_' + attribution_method + '.pkl'))
+
+    #return expl
+
 
 if __name__=='__main__':
-    fire.Fire(explain_validation_data)
+    fire.Fire(explain)

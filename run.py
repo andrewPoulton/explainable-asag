@@ -110,7 +110,7 @@ def run(*configs, group = None):
             wandb.save('*.pt')
         #Move stuff off the gpu
         model.cpu()
-        optimizer_to_cpu(optimizer)
+        optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
         #return model    #Gives Error

@@ -1,31 +1,13 @@
+from_scratch:
+  from_scratch: true
+
 htune:
     group: htune
     max_epochs: 35
     max_patience: null
     optimizer: AdamW
     optimizer_kwargs:
-        weight_decay: 1.e-7
+        weight_decay: 1.e-5
     learn_rate: 1.e-5
     batch_size: 8
-
-h1:
-    name: h1
     scheduler: linear_with_warmup
-    scheduler_args:
-        - 2000
-        - 27000
-
-h2:
-    name: h2
-    scheduler: cosine_with_warmup
-    scheduler_args:
-        - 2000
-        - 27000
-
-h3:
-    name: h3
-    name: h2
-    scheduler: cosine_with_warmup
-    scheduler_args:
-        - 2000
-        - 27000

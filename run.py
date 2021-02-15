@@ -12,21 +12,6 @@ from datetime import datetime
 import sys
 import json
 
-### From: https://discuss.pytorch.org/t/moving-optimizer-from-cpu-to-gpu/96068/3
-def optimizer_to_cpu(optim):
-    device = 'cpu'
-    for param in optim.state.values():
-        # Not sure there are any global tensors in the state dict
-        if isinstance(param, torch.Tensor):
-            param.data = param.data.to(device)
-            if param._grad is not None:
-                param._grad.data = param._grad.data.to(device)
-        elif isinstance(param, dict):
-            for subparam in param.values():
-                if isinstance(subparam, torch.Tensor):
-                    subparam.data = subparam.data.to(device)
-                    if subparam._grad is not None:
-                        subparam._grad.data = subparam._grad.data.to(device)
 
 def run(*configs, group = None):
     config = configuration.load(*configs)
@@ -115,9 +100,7 @@ def run(*configs, group = None):
         # Move stuff off the gpu
         model.cpu()
         #This is for sure a kinda dumb way of doing it, but the least mentally taxing right now
-        #optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
-        #Is this smarter?
-        optimizer_to_cpu(optimizer)
+        optimizer = torch.optim.__dict__[config.optimizer](model.parameters(), lr = config.learn_rate)
         gc.collect()
         torch.cuda.empty_cache()
         #return model   #Gives Error

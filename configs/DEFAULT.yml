@@ -10,14 +10,15 @@ DEFAULT:
     val_percent: 100
     num_labels: 2
     num_workers: 4
-    group: group
+    group: ''
     drop_last: False
     log: True
     name: null
     from_scratch: False
     max_patience: 5
-    optimizer: Adam
-    optimizer_kwargs: {}
+    optimizer: AdamW
+    optimizer_kwargs:
+        weight_decay: 1.e-5
     scheduler: linear_with_warmup
     scheduler_args:
       - 1024

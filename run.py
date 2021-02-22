@@ -15,6 +15,7 @@ import json
 
 def run(*configs, group = None):
     config = configuration.load(*configs)
+    config.group = config.data_source + config.data_source
     if group:
         config.group = config.group + "-" + str(group)
     if config.from_scratch:
@@ -87,7 +88,7 @@ def run(*configs, group = None):
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
             if f1 > best_f1:
                 if config.log:
-                    this_model =  os.path.join(wandb.run.dir,config.name + '-best_f1.pt')
+                    this_model =  os.path.join(wandb.run.dir,'best_f1.pt')
                     print("saving to: ", this_model)
                     torch.save([model.state_dict(), config.__dict__], this_model)
                     wandb.save('*.pt')

@@ -15,7 +15,10 @@ import json
 
 def run(*configs, group = None):
     config = configuration.load(*configs)
-    config.group = config.data_source + config.data_source
+    if config.group:
+        config.group = config.data_source + '-' +  config.group
+    else:
+        config.group = config.data_source
     if group:
         config.group = config.group + "-" + str(group)
     if config.from_scratch:

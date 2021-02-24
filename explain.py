@@ -15,6 +15,7 @@ from captum.attr import visualization
 from configuration import load_configs_from_file
 import dataset
 import json
+import os
 from tqdm import tqdm
 
 __CUDA__ = torch.cuda.is_available()
@@ -51,23 +52,21 @@ def explainer(model, attribution_method = "IntegratedGradients"):
         return model(inputs_embeds = embeds).logits
     return attribution_method(func)
 
-def rank_tokens_by_attribution(batch, attributes, norm = 2, **kwargs):
-    norm = kwargs.get("norm", norm)
-    rank_order = attributes.norm(norm, dim = -1).argsort().squeeze()
-    ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy()[::-1].tolist()
-    return rank_order, ordered_tokens
+# def rank_tokens_by_attribution(batch, attributes, norm = 2, **kwargs):
+#     norm = kwargs.get("norm", norm)
+#     rank_order = attributes.norm(norm, dim = -1).argsort().squeeze()
+#     ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy()[::-1].tolist()
+#     return rank_order, ordered_tokens
 
-def summarize(attr, norm = 2):
-    attr =  attr.norm(norm, dim = -1).squeeze()
-    # for integrated gradients may want to use instead
-    #attr = attr.sum(dim=-1).squeeze(0)
-    #attr = attr / torch.norm(attr)
-    attr_score = attr.sum()
-    attr_class = 99
-    return attr.cpu().detach().numpy(), attr_class, attr_score.detach().numpy()
+def summarize(attr, aggr = 'norm', norm = 1):
+    if aggr == 'norm':
+        attr =  attr.norm(norm, dim = -1).squeeze()
+    else:
+        attr = attr.mean(dim=-1).squeeze(0)
+    return attr.cpu().detach().numpy()
 
 
-def explain_batch(attibution_method, model, batch, **kwargs):
+def explain_batch(attibution_method, model, batch, target = False, **kwargs):
     embeds = get_embeds(model, batch.input)
     with torch.no_grad():
         logits = model(inputs_embeds = embeds).logits.squeeze()
@@ -77,12 +76,16 @@ def explain_batch(attibution_method, model, batch, **kwargs):
     if kwargs.get("baselines", False):
         baseline = get_baseline(model, batch)
         kwargs["baselines"] = baseline
-    attr = exp.attribute(embeds, target = pred, additional_forward_args = model,  **kwargs)
+    if not target:
+        target = pred
+    attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
     return attr, pred, pred_prob
 
 
-def explain(data_file, model_path,  attribution_method, datasource = 'beetle'):
-    train_percent = 10
+def explain(data_file, model_dir,  attribution_method):
+    for file in os.scandir(model_dir):
+        if file.name.endswith('.pt'):
+            model_path = os.path.join(model_dir, file.name)
     model, config  = load_model_from_disk(model_path)
     model.eval()
     # The data that we will explain
@@ -90,15 +93,16 @@ def explain(data_file, model_path,  attribution_method, datasource = 'beetle'):
     expl_dataloader = dataset.dataloader(
         val_mode = True,
         data_file = data_file,
-        data_source = datasource,
+        data_source = config['data_source'],
         vocab_file = config['model_name'],
-        num_labels = 2,
-        train_percent = train_percent,
+        num_labels = config['num_labels'],
+        train_percent = 100,
         batch_size = 1,
         drop_last = False,
         num_workers = 0)
     tokenizer = expl_dataloader.dataset.tokenizer
-    attr_list = []
+    attr_norm_list = []
+    attr_mean_list = []
     tokens_list = []
     label_list = []
     prob_list = []
@@ -110,21 +114,25 @@ def explain(data_file, model_path,  attribution_method, datasource = 'beetle'):
         pbar.set_description(f'Compute attributions:')
         for batch in expl_dataloader:
             label = batch.labels.item()
-            attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, **kwargs)
-            attr, attr_class, attr_score = summarize(attr)
-            tokens = tokenizer.decode(batch.input.squeeze())
-            attr_list.append(attr)
-            tokens_list.append(tokens)
-            label_list.append(label)
-            prob_list.append(pred_prob)
-            pred_list.append(pred)
-            attr_class_list.append(attr_class)
-            attr_score_list.append(attr_score)
-            pbar.update(1)
+            for target in range(config['num_labels']):
+                attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, target = target, **kwargs)
+                attr_norm = summarize(attr, aggr = 'norm')
+                attr_mean = summarize(attr, aggr = 'mean')
+                attr_score = attr.sum()
+                tokens = tokenizer.decode(batch.input.squeeze())
+                attr_norm_list.append(attr_norm)
+                attr_mean_list.append(attr_mean)
+                tokens_list.append(tokens)
+                label_list.append(label)
+                prob_list.append(pred_prob)
+                pred_list.append(pred)
+                attr_class_list.append(target)
+                attr_score_list.append(attr_score)
+                pbar.update(1)
 
-        expl = pd.DataFrame({'attr': attr_list, 'tokens': tokens_list, 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
-                             'attr_score': attr_score_list, 'attr_sclass': attr_class_list})
-        expl.to_pickle(os.path.join('explained', config['name'] + '_' + attribution_method + '.pkl'))
+        expl_norm = pd.DataFrame({ 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
+                                   'attr_class': attr_class_list,'attr_score': attr_score_list, 'attr_norm': attr_norm_list, 'attr_mean': attr_mean_list,  'tokens': tokens_list})
+        expl.to_pickle(os.path.join('explained',  config['name'] + '_' + config['data_source'] + '_' + model_dir + '_'   aggr + '_' + attribution_method + '.pkl'))
 
     #return expl
 

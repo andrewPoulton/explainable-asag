@@ -25,7 +25,7 @@ def load_model_from_disk(path):
     config = config['_items']
     mdl = transformers.AutoModelForSequenceClassification.from_pretrained(config['model_name'])
     mdl.load_state_dict(weights)
-    print(f"Loaded mode {config['model_name']} from {path} successfully.")
+    print(f"Loaded model {config['model_name']} from {path} successfully.")
     return mdl, config
 
 def get_word_embeddings(module):
@@ -92,6 +92,13 @@ def explain(data_file, model_dir,  attribution_method):
         model.cuda()
     # The data that we will explain
     kwargs = load_configs_from_file('configs/explain.yml')["EXPLAIN"].get(attribution_method, {}) or {}
+    if __CUDA__:
+        if config['model_name'].contains('large'):
+            num_workers = 4
+        else:
+            num_workers = 8
+    else:
+        num_workers = 0
     expl_dataloader = dataset.dataloader(
         val_mode = True,
         data_file = data_file,
@@ -101,7 +108,7 @@ def explain(data_file, model_dir,  attribution_method):
         train_percent = 100,
         batch_size = 1,
         drop_last = False,
-        num_workers = config['num_workers'])
+        num_workers = num_workers)
     tokenizer = expl_dataloader.dataset.tokenizer
     attr_norm_list = []
     attr_mean_list = []

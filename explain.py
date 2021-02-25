@@ -69,7 +69,7 @@ def summarize(attr, aggr = 'norm', norm = 1):
 def explain_batch(attibution_method, model, batch, target = False, **kwargs):
     embeds = get_embeds(model, batch.input)
     with torch.no_grad():
-        logits = model(inputs_embeds = embeds).logits.squeeze()
+        logits = model(inputs_embeds = embeds).logits.cpu().squeeze()
         pred = logits.argmax().item()
         pred_prob = torch.nn.functional.softmax(logits, dim=0).max().item()
     exp =  explainer(model, attibution_method)
@@ -88,6 +88,8 @@ def explain(data_file, model_dir,  attribution_method):
             model_path = os.path.join(model_dir, file.name)
     model, config  = load_model_from_disk(model_path)
     model.eval()
+    if __CUDA__:
+        model.cuda()
     # The data that we will explain
     kwargs = load_configs_from_file('configs/explain.yml')["EXPLAIN"].get(attribution_method, {}) or {}
     expl_dataloader = dataset.dataloader(
@@ -99,7 +101,7 @@ def explain(data_file, model_dir,  attribution_method):
         train_percent = 100,
         batch_size = 1,
         drop_last = False,
-        num_workers = 0)
+        num_workers = config['num_workers'])
     tokenizer = expl_dataloader.dataset.tokenizer
     attr_norm_list = []
     attr_mean_list = []
@@ -114,6 +116,8 @@ def explain(data_file, model_dir,  attribution_method):
         pbar.set_description(f'Compute {attribution_method}:')
         for batch in expl_dataloader:
             label = batch.labels.item()
+            if __CUDA__:
+                batch.cuda()
             for target in range(config['num_labels']):
                 attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, target = target, **kwargs)
                 attr_norm = summarize(attr, aggr = 'norm')
@@ -128,12 +132,14 @@ def explain(data_file, model_dir,  attribution_method):
                 pred_list.append(pred)
                 attr_class_list.append(target)
                 attr_score_list.append(attr_score)
+            batch.cpu()
             pbar.update(1)
 
     expl = pd.DataFrame({ 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
                                    'attr_class': attr_class_list,'attr_score': attr_score_list, 'attr_norm': attr_norm_list, 'attr_mean': attr_mean_list,  'tokens': tokens_list})
     expl.to_pickle(os.path.join('explained',  config['name'] + '_' + config['data_source'] + '_' + model_dir  + '_' + attribution_method + '.pkl'))
 
+    model.cpu()
     #return expl
 
 

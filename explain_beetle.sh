@@ -1,6 +1,6 @@
 #! /bin/bash
 declare -a Runs=(
-    1fkyddwv #bert-base-beetle-3
+#    1fkyddwv #bert-base-beetle-3
     9c9fsnl5 #bert-large-beetle-1
     2owzw8vf #roberta-base-beetle-1
     xpdm71ti #roberta-large-beetle-3
@@ -15,8 +15,8 @@ declare -a Runs=(
 )
 
 declare -a AttributionMethods=(
-    "InputXGradient"
-    "Saliency"
+#     "InputXGradient"
+#     "Saliency"
     "IntegratedGradients"
     "GradientShap"
 )

@@ -15,16 +15,15 @@ declare -a Runs=(
 )
 
 declare -a AttributionMethods=(
-    "IntegratedGradients"
     "InputXGradient"
     "Saliency"
+    "IntegratedGradients"
     "GradientShap"
-    "GuidedBackprop"
 )
 
 for RUNID in "${Runs[@]}"
 do
-    mkdir $RUNID
+    mkdir -p $RUNID
     cd $RUNID
     wandb pull $RUNID -p explainable-asag -e sebaseliens
     cd ..

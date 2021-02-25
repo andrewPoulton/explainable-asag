@@ -111,8 +111,7 @@ def explain(data_file, model_dir,  attribution_method):
     attr_score_list = []
     # NOTE: This only works for batch_size = 1 and relies on it for now
     with tqdm(total=len(expl_dataloader.batch_sampler)) as pbar:
-        pbar.set_de
-        scription(f'Compute attributions:')
+        pbar.set_description(f'Compute {attribution_method}:')
         for batch in expl_dataloader:
             label = batch.labels.item()
             for target in range(config['num_labels']):
@@ -129,11 +128,11 @@ def explain(data_file, model_dir,  attribution_method):
                 pred_list.append(pred)
                 attr_class_list.append(target)
                 attr_score_list.append(attr_score)
-                pbar.update(1)
+            pbar.update(1)
 
-        expl_norm = pd.DataFrame({ 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
+    expl = pd.DataFrame({ 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
                                    'attr_class': attr_class_list,'attr_score': attr_score_list, 'attr_norm': attr_norm_list, 'attr_mean': attr_mean_list,  'tokens': tokens_list})
-        expl.to_pickle(os.path.join('explained',  config['name'] + '_' + config['data_source'] + '_' + model_dir + '_' +  aggr + '_' + attribution_method + '.pkl'))
+    expl.to_pickle(os.path.join('explained',  config['name'] + '_' + config['data_source'] + '_' + model_dir  + '_' + attribution_method + '.pkl'))
 
     #return expl
 

@@ -93,8 +93,8 @@ def explain(data_file, model_dir,  attribution_method):
     # The data that we will explain
     kwargs = load_configs_from_file('configs/explain.yml')["EXPLAIN"].get(attribution_method, {}) or {}
     if __CUDA__:
-        if config['model_name'].contains('large'):
-            num_workers = 4
+        if attribution_method == 'IntegratedGradients':
+            num_workers = 1
         else:
             num_workers = 8
     else:

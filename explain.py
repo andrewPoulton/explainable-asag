@@ -129,7 +129,7 @@ def explain(data_file, model_dir,  attribution_method):
                 attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, target = target, **kwargs)
                 attr_norm = summarize(attr, aggr = 'norm')
                 attr_mean = summarize(attr, aggr = 'mean')
-                attr_score = attr.sum()
+                attr_score = attr.sum().cpu().item()
                 tokens = tokenizer.decode(batch.input.squeeze())
                 attr_norm_list.append(attr_norm)
                 attr_mean_list.append(attr_mean)

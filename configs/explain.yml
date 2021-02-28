@@ -11,4 +11,8 @@ EXPLAIN:
   GradientShap :
     baselines : True
 
-  GuidedBackprop:
+  Occlusion:
+    baselines : True
+
+  # KernelShap:
+  #   baselines : True

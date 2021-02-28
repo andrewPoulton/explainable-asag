@@ -58,27 +58,31 @@ def explainer(model, attribution_method = "IntegratedGradients"):
 #     ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy()[::-1].tolist()
 #     return rank_order, ordered_tokens
 
-def summarize(attr, aggr = 'norm', norm = 1):
+def summarize(attr, aggr = 'norm', norm = 2):
     if aggr == 'norm':
-        attr =  attr.norm(norm, dim = -1).squeeze()
+        attr =  attr.norm(norm, dim = -1).squeeze(0)
     else:
-        attr = attr.mean(dim=-1).squeeze(0)
+        attr = attr.sum(dim=-1).squeeze(0)
     return attr.cpu().detach().numpy()
 
 
-def explain_batch(attibution_method, model, batch, target = False, **kwargs):
+def explain_batch(attribution_method, model, batch, target = False, **kwargs):
     embeds = get_embeds(model, batch.input)
     with torch.no_grad():
         logits = model(inputs_embeds = embeds).logits.cpu().squeeze()
         pred = logits.argmax().item()
         pred_prob = torch.nn.functional.softmax(logits, dim=0).max().item()
-    exp =  explainer(model, attibution_method)
+    exp =  explainer(model, attribution_method)
     if kwargs.get("baselines", False):
         baseline = get_baseline(model, batch)
         kwargs["baselines"] = baseline
     if not target:
         target = pred
-    attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
+    if attribution_method == 'Occlusion':
+        sliding_window_shape = (1,embeds.shape[-1])
+        attr = exp.attribute(embeds, sliding_window_shape, target = target, additional_forward_args = model,  **kwargs)
+    else:
+        attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
     return attr, pred, pred_prob
 
 
@@ -90,13 +94,9 @@ def explain(data_file, model_dir,  attribution_method):
     model.eval()
     if __CUDA__:
         model.cuda()
-    # The data that we will explain
     kwargs = load_configs_from_file('configs/explain.yml')["EXPLAIN"].get(attribution_method, {}) or {}
     if __CUDA__:
-        if attribution_method == 'IntegratedGradients':
-            num_workers = 1
-        else:
-            num_workers = 8
+        num_workers = 8
     else:
         num_workers = 0
     expl_dataloader = dataset.dataloader(
@@ -110,8 +110,9 @@ def explain(data_file, model_dir,  attribution_method):
         drop_last = False,
         num_workers = num_workers)
     tokenizer = expl_dataloader.dataset.tokenizer
-    attr_norm_list = []
-    attr_mean_list = []
+    attr_L1_list = []
+    attr_L2_list = []
+    attr_sum_list = []
     tokens_list = []
     label_list = []
     prob_list = []
@@ -127,12 +128,14 @@ def explain(data_file, model_dir,  attribution_method):
                 batch.cuda()
             for target in range(config['num_labels']):
                 attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, target = target, **kwargs)
-                attr_norm = summarize(attr, aggr = 'norm')
-                attr_mean = summarize(attr, aggr = 'mean')
+                attr_L1 = summarize(attr, aggr = 'norm', norm=1)
+                attr_L2 = summarize(attr, aggr = 'norm', norm=2)
+                attr_sum = summarize(attr, aggr = 'sum')
                 attr_score = attr.sum().cpu().item()
                 tokens = tokenizer.decode(batch.input.squeeze())
-                attr_norm_list.append(attr_norm)
-                attr_mean_list.append(attr_mean)
+                attr_L1_list.append(attr_L1)
+                attr_L2_list.append(attr_L2)
+                attr_sum_list.append(attr_sum)
                 tokens_list.append(tokens)
                 label_list.append(label)
                 prob_list.append(pred_prob)
@@ -142,8 +145,8 @@ def explain(data_file, model_dir,  attribution_method):
             batch.cpu()
             pbar.update(1)
 
-    expl = pd.DataFrame({ 'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
-                                   'attr_class': attr_class_list,'attr_score': attr_score_list, 'attr_norm': attr_norm_list, 'attr_mean': attr_mean_list,  'tokens': tokens_list})
+    expl = pd.DataFrame({'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
+                                   'attr_class': attr_class_list, 'attr_L1': attr_L1_list,'attr_L2': attr_L2_list, 'attr_sum': attr_sum_list,  'tokens': tokens_list})
     expl.to_pickle(os.path.join('explained',  config['name'] + '_' + config['data_source'] + '_' + model_dir  + '_' + attribution_method + '.pkl'))
 
     model.cpu()

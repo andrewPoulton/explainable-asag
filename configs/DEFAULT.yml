@@ -24,3 +24,4 @@ DEFAULT:
       - 1024
       - 17000
     scheduler_kwargs: {}
+    token_types: False

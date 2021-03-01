@@ -8,10 +8,12 @@ from typing import List, Dict
 from tqdm import tqdm
 from copy import deepcopy
 from transformers import AutoTokenizer
+from torch.utils.data import SequentialSampler, RandomSampler, BatchSampler, DataLoader
 import xml.etree.ElementTree as et
 import pandas as pd
 import torch
 import re
+import configuration
 
 def pad_tensor_batch(tensors, pad_token = 0):
     max_length = max([t.size(0) for t in tensors])
@@ -51,10 +53,10 @@ class Batch(SimpleNamespace):
 
 
 class SemEvalDataset(Dataset):
-    def __init__(self, data, hf_filepath, num_labels = 2, train_percent = 100):
-        self.data = pd.read_csv(data)
+    def __init__(self, data_file = 'data/flat_semeval5way_train.csv', vocab_file = 'bert-base-uncased',  num_labels = 2, train_percent = 100):
+        self.data = pd.read_csv(data_file)
         self.num_labels = num_labels
-        self.tokenizer = AutoTokenizer.from_pretrained(hf_filepath,lowercase=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(vocab_file, lowercase=True)
         self.label_map = {'correct':0,
                         'contradictory':1,
                         'partially_correct_incomplete':2,
@@ -64,7 +66,7 @@ class SemEvalDataset(Dataset):
         self._2way_labels = lambda x: 1 if x >=1 else x
         self.progress_encode()
         self._data = self.data.copy()
-        self.test = 'test' in data
+        self.test = 'test' in data_file
         self.source = ''
         self.train_percent = train_percent
         
@@ -88,7 +90,8 @@ class SemEvalDataset(Dataset):
             num_egs = int(self.train_percent*0.01*len(self.data))
             self.data = self.data.iloc[:num_egs]
 
-    def set_data_source(self,source):
+    # what is the function of set_data_source and why select train_percent here?
+    def set_data_source(self, source):
         data = self._data[self._data.source == source]
         self.data = data
         self.source = source
@@ -145,3 +148,31 @@ class SemEvalDataset(Dataset):
                 'token_type_ids':pad_tensor_batch(token_type_ids),
                 'labels': torch.Tensor(labels).long()}
         return Batch(**data)
+
+
+
+def dataloader(**config):
+    # defualt configurations can be found in the config files
+    default = configuration.load()
+    data_file = config.get('train_data', default.train_data)
+    data_source = config.get('data_source', default.data_source)
+    vocab_file = config.get('model_name', default.model_name)
+    num_labels = config.get('num_labels', default.num_labels)
+    train_percent = config.get('train_percent', default.train_percent)
+    batch_size = config.get('batch_size', default.batch_size)
+    drop_last = config.get('drop_last', default.drop_last)
+    num_workers = config.get('num_workers', default.num_workers)
+    data_val_origin = config.get('data_val_origin', default.data_val_origin)
+    val_mode = config.get('val_mode', False)
+    if val_mode and 'test' not in data_file:
+        data_file = data_file.replace('train', 'test')
+    # now we define the dataloader
+    data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
+    data.set_data_source(data_source)
+    print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
+    if val_mode:
+        data.to_val_mode(data_source, 'answer')
+    sampler = SequentialSampler(data) if val_mode else RandomSampler(data)
+    batch_sampler = BatchSampler(sampler, batch_size = batch_size, drop_last=drop_last)
+    loader = DataLoader(data, batch_sampler=batch_sampler, collate_fn=data.collater, num_workers = num_workers)
+    return loader

@@ -1,0 +1,4 @@
+DATA:
+    data_dir: data
+    train_data_file: flat_semeval5way_train.csv
+    val_data_file: flat_semeval5way_test.csv

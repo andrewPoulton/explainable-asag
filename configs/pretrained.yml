@@ -1,0 +1,51 @@
+bert-base:
+    name: bert-base
+    model_name: bert-base-uncased
+
+bert-large:
+    name: bert-large
+    model_name: bert-large-uncased
+
+roberta-base:
+    name: roberta-base
+    model_name: roberta-base
+
+roberta-large:
+    name: roberta-large
+    model_name: roberta-large
+
+albert-base:
+    name: albert-base
+    model_name: albert-base-v2
+
+albert-large:
+    name: albert-large
+    model_name: albert-large-v2
+
+distilbert-base:
+    name: distilbert-base
+    model_name: distilbert-base-uncased
+
+distilroberta:
+    name: distilroberta
+    model_name: distilroberta-base
+
+distilbert-base-squad2:
+    name: distilbert-base-squad2
+    model_name: twmkn9/distilbert-base-uncased-squad2
+
+roberta-base-squad2:
+    name: roberta-base-squad2
+    model_name: deepset/roberta-base-squad2
+
+distilroberta-base-squad2:
+    name: distilroberta-base-squad2
+    model_name: twmkn9/distilroberta-base-squad2
+
+bert-base-squad2:
+    name: bert-base-squad2
+    model_name: twmkn9/bert-base-uncased-squad2
+
+albert-base-squad2:
+    name: albert-base-squad2
+    model_name: twmkn9/albert-base-v2-squad2

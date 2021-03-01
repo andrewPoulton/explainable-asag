@@ -1,0 +1,18 @@
+EXPLAIN: 
+  IntegratedGradients :
+    n_steps : 200
+    baselines : True
+
+  InputXGradient : 
+
+  Saliency : 
+    abs: False
+
+  GradientShap :
+    baselines : True
+
+  Occlusion:
+    baselines : True
+
+  # KernelShap:
+  #   baselines : True

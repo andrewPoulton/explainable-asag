@@ -15,9 +15,11 @@ import json
 def update_token_type_embeddings(module, embedding_size, initializer_range, num_token_types = 4):
     for attr_str in dir(module):
         if attr_str == "token_type_embeddings":
+            old_embeddings = module.__getattr__(attr_str)
             new_embeddings = torch.nn.Embedding(num_token_types, embedding_size)
             new_embeddings.weight.data.normal_(mean = 0.0, std = initializer_range)
             setattr(module, attr_str, new_embeddings)
+            print(f"Updated token_type_embedding from {old_embeddings} to {new_embeddings}.")
             return
 
     for n, ch in module.named_children():

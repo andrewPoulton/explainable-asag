@@ -17,7 +17,7 @@ with warnings.catch_warnings():
     import wandb
 
 
-def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = False):
+def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = False, token_types = False):
     loss_fn = torch.nn.CrossEntropyLoss()
     model.train()
     with tqdm(total=len(loader.batch_sampler)) as pbar:
@@ -27,7 +27,10 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = 
                 batch.cuda()
             optimizer.zero_grad()
             mask = batch.generate_mask()
-            logits = model(input_ids = batch.input, attention_mask = mask)
+            if token_types:
+                logits = model(input_ids = batch.input, attention_mask = mask, token_type_ids = batch.token_type_ids)
+            else:
+                logits = model(input_ids = batch.input, attention_mask = mask)
             logits = logits[0]
             # import pdb; pdb.set_trace()
             loss = loss_fn(logits.view(-1, num_labels), batch.labels.view(-1))

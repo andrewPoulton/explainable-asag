@@ -95,7 +95,7 @@ def run(*configs, group = None):
         #while lr_scheduler.last_epoch <= total_steps:
         while epoch < config.max_epochs:
             epoch += 1
-            av_epoch_loss =  training.train_epoch(train_dataloader, model, optimizer, lr_scheduler, config.num_labels, cuda, log = config.log)
+            av_epoch_loss =  training.train_epoch(train_dataloader, model, optimizer, lr_scheduler, config.num_labels, cuda, log = config.log, token_types = config.token_types)
             #tidy stuff up every epoch
             gc.collect()
             torch.cuda.empty_cache()

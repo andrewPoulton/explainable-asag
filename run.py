@@ -12,6 +12,19 @@ from datetime import datetime
 import sys
 import json
 
+## Add config option to train with token_types
+def update_token_type_embeddings(module, hidden_size, initializer_range, num_token_types = 4):
+    for attr_str in dir(module):
+        if attr_str == "token_type_embeddings":
+            new_embeddings = torch.nn.Embedding(num_token_types, hidden_size)
+            new_embeddings.weight.data.normal_(mean = 0.0, std = initializer_range)
+            setattr(module, attr_str, new_embeddings)
+            return
+
+    for n, ch in module.named_children():
+        embeds = update_token_type_embeddings(ch, hidden_size, initializer_range, num_token_types)
+        
+
 
 def run(*configs, group = None):
     config = configuration.load(*configs)
@@ -32,7 +45,9 @@ def run(*configs, group = None):
         config = wandb.config
 
     model = transformers.AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels = config.num_labels)
-
+    ## Sebas - TO CHECK
+    # if config.token_types:
+    #     update_token_type_embeddings(model, model.config.hidden_size, model.config.initializer_range)
     if config.from_scratch:
         model.init_weights()
 

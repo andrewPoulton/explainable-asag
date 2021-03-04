@@ -24,9 +24,9 @@ def get_sub_module(module, submodule_name):
             return  getattr(module, attr_str)
 
     for n, ch in module.named_children():
-        embeds = get_word_embeddings(ch)
-        if embeds:
-            return embeds
+        submodule = get_sub_module(ch, submodule_name)
+        if submodule:
+            return submodule
 
 def grad_norm(model):
     return sum(p.grad.pow(2).sum() if p.grad is not None else torch.tensor(0.) for p in model.parameters())**.5

@@ -1,4 +1,5 @@
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     import torch
@@ -16,6 +17,19 @@ with warnings.catch_warnings():
     import gc
     import wandb
 
+
+def get_sub_module(module, submodule_name):
+    for attr_str in dir(module):
+        if attr_str == submodule_name:
+            return  getattr(module, attr_str)
+
+    for n, ch in module.named_children():
+        embeds = get_word_embeddings(ch)
+        if embeds:
+            return embeds
+
+def grad_norm(model):
+    return sum(p.grad.pow(2).sum() if p.grad is not None else torch.tensor(0.) for p in model.parameters())**.5
 
 def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = False, token_types = False):
     loss_fn = torch.nn.CrossEntropyLoss()
@@ -50,6 +64,9 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = 
             # if i % config.log_interval == 0:
             if log:
                 wandb.log({"Train Accuracy": acc, "Train Loss": loss.item(), "Learning Rate": optimizer.param_groups[0]['lr']})
+            if log and token_types:
+                 wandb.log({"Word embedding grad norm":grad_norm(get_sub_module(model, "word_embeddings")).item(),
+                           "Token type embedding grad norm":grad_norm(get_sub_module(model, "token_type_embeddings")).item()})
             pbar.set_description(f'global_step: {lr_scheduler.last_epoch}| loss: {loss.item():.4f}| acc: {acc*100:.1f}%| epoch_av_loss: {epoch_loss/(i+1):.4f} |')
             pbar.update(1)
         #  move stuff off GPU

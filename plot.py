@@ -13,6 +13,7 @@ from evaluation import (
     ATTRIBUTION_DIR,
     ANNOTATION_DIR
 )
+from weasyprint import HTML, CSS
 
 TEST_annotation_file_names = [
     'sebas_beetle_unseen_answers_66.annotation'
@@ -53,7 +54,7 @@ TEST_attribution_file_names =[
     'bert-base-squad2_beetle_307twu8l_Saliency.pkl'
 ]
 
-def compute_saliency_heatmap_data(attribution_file_names, annotation_file_names, aggr = 'norm'):
+def compute_saliency_heatmap_data(annotation_file_names, attribution_file_names, aggr = 'norm'):
     annotations = [read_annotation(ANNOTATION_DIR, file_name) for file_name in annotation_file_names]
     attributions = [read_attribution(ATTRIBUTION_DIR, file_name) for file_name in attribution_file_names]
     assert len(set(a['question_id'] for a in annotations)) <= 1, 'All annotations should be of same input'
@@ -65,20 +66,34 @@ def compute_saliency_heatmap_data(attribution_file_names, annotation_file_names,
         a['df'] = a['df'][a['df']['pred'] == a['df']['attr_class']]
         a['df'].index = df.index
     data_row = df.loc[q_id]
-    df_plot = pd.DataFrame([[None]*(len(data_row['student_answers'].split())+2)]*(len(annotations) + len(attributions)))
-    df_plot.columns = ['attribution_method', 'model'] +  data_row['student_answers'].split()
+    df_plot = pd.DataFrame(columns = ['attribution_method', 'model'] + data_row['student_answers'].split(), index = range(len(annotations) + len(attributions)))
     for i, a in enumerate(annotations):
         saliency = compute_golden_saliency_vector(a['annotation'], data_row['student_answers'])
         df_plot.iloc[i] = ['Human', a['annotator']] + list(saliency)
     for i, a in enumerate(attributions):
         tokenizer = get_tokenizer(a['model'])
-        attr = a['df'].loc[q_id, 'attr_' + aggr]
+        attr = a['df'].loc[q_id, 'attr_' + aggr].astype(float)
         text = tokenizer.convert_tokens_to_string(a['df'].loc[q_id, 'tokens'])
         saliency = compute_student_answer_word_saliency_vector(attr, data_row, tokenizer)
         df_plot.iloc[i+len(annotations)] = [a['attribution_method'], a['model']] + list(saliency)
-    return {'df' : df_plot, 'data_row': data_row}
+    return df_plot,  data_row
 
+def plot_saliency_heatmap(df, input_data):
+    df = df.set_index(['attribution_method','model'])
+    cm = sns.light_palette((260, 75, 60), input="husl", as_cmap=True)
+    #cm = sns.diverging_palette(250, 5, as_cmap=True)
+    with pd.option_context('display.precision', 2):
+        df = df.astype('Float64')
+        df_ai = df.loc[df.index[1:]].sort_index()
+        df_human = df.loc[df.index[0:1]]
+        df = df_human.append(df_ai)
+        df.index.names = [None,None]
+        df_styled = df.style.background_gradient(cmap =cm).set_properties(**{'font-size': '12px'})
+    html = HTML(string=df_styled.render())
+    html.write_png('plots/saliency_heatmap.png')
+    pass
 
 
 if __name__ == "__main__":
-    plot_saliency_heatmap( "bert-base-squad2_beetle_307twu8l_IntegratedGradients.pkl" , 'sebas_beetle_unseen_answers_216.annotation')
+    df, input_data = compute_saliency_heatmap_data(TEST_annotation_file_names, TEST_attribution_file_names)
+    plot = plot_saliency_heatmap(df, input_data)

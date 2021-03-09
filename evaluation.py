@@ -44,7 +44,7 @@ def list_word_token_idx(text, tokenizer, special_tokens = False):
     return word_idx
 
 def compute_golden_saliency_vector(annotation, sentence):
-    return np.array([1 if f'word_{k+1}' in annotation.split(',') else 0 for k in range(len( sentence.split()))])
+    return np.array([1 if f'word_{k}' in annotation.split(',') else 0 for k in range(len( sentence.split()))])
 
 def scale_to_unit_interval(attr):
     attr = np.array(attr)

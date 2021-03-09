@@ -26,9 +26,9 @@ def get_annotations(annotation_dir):
     return df
 
 def read_attribution(attribution_dir, attribution_file_name):
-    name, source, run_id, attribution_method = attribution_file_name.split('.')[0].split('_')
+    model, source, run_id, attribution_method = attribution_file_name.split('.')[0].split('_')
     df = pd.read_pickle(os.path.join(attribution_dir,attribution_file_name))
-    return {'df': df, 'name': name, 'source': source, 'run_id': run_id, 'attribution_method' : attribution_method}
+    return {'df': df, 'model': model, 'source': source, 'run_id': run_id, 'attribution_method' : attribution_method}
 
 
 def list_word_token_idx(text, tokenizer, special_tokens = False):
@@ -73,7 +73,7 @@ def read_test_data(source):
 def compute_human_agreement(attribution_file_name, aggr = 'norm'):
     print('Computing human agreement (HA) for', attribution_file_name)
     attributions = read_attribution(ATTRIBUTION_DIR, attribution_file_name)
-    model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[attributions['name']]['model_name']
+    model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[attributions['model']]['model_name']
     tokenizer =  transformers.AutoTokenizer.from_pretrained(model_name, lowercase=True)
     df_attr = attributions['df'][attributions['df']['pred']==attributions['df']['attr_class']]
     df_anno = get_annotations(ANNOTATION_DIR)

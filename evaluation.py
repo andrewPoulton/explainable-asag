@@ -11,6 +11,11 @@ DATA_FILE = 'data/flat_semeval5way_test.csv'
 ATTRIBUTION_DIR = 'explained'
 ANNOTATION_DIR = '../annotator/annotations'
 
+def get_tokenizer(model):
+    model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[model]['model_name']
+    tokenizer =  transformers.AutoTokenizer.from_pretrained(model_name, lowercase=True)
+    return tokenizer
+
 def read_annotation(annotation_dir, annotation_file_name):
     annotator, source, origin1, origin2, question_id = annotation_file_name.split('.')[0].split('_')
     origin = '_'.join([origin1,origin2])
@@ -38,8 +43,8 @@ def list_word_token_idx(text, tokenizer, special_tokens = False):
     word_idx = [[next(it) for j in w] for w in word_encodings]
     return word_idx
 
-def compute_golden_saliency_vector(annotation, data_row):
-    return np.array([1 if f'word_{k+1}' in annotation.split(',') else 0 for k in range(len( data_row['student_answers'].split()))])
+def compute_golden_saliency_vector(annotation, sentence):
+    return np.array([1 if f'word_{k+1}' in annotation.split(',') else 0 for k in range(len( sentence.split()))])
 
 def scale_to_unit_interval(attr):
     attr = np.array(attr)
@@ -73,8 +78,7 @@ def read_test_data(source):
 def compute_human_agreement(attribution_file_name, aggr = 'norm'):
     print('Computing human agreement (HA) for', attribution_file_name)
     attributions = read_attribution(ATTRIBUTION_DIR, attribution_file_name)
-    model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[attributions['model']]['model_name']
-    tokenizer =  transformers.AutoTokenizer.from_pretrained(model_name, lowercase=True)
+    tokenizer = get_tokenizer(attributions['model'])
     df_attr = attributions['df'][attributions['df']['pred']==attributions['df']['attr_class']]
     df_anno = get_annotations(ANNOTATION_DIR)
     df_anno = df_anno[df_anno.source == attributions['source']]
@@ -86,7 +90,7 @@ def compute_human_agreement(attribution_file_name, aggr = 'norm'):
         annotation_row = df_anno.iloc[i]
         data_row = df.loc[int(annotation_row['question_id'])]
         attribution_row = df_attr.loc[int(annotation_row['question_id'])]
-        golden = compute_golden_saliency_vector(annotation_row['annotation'], data_row)
+        golden = compute_golden_saliency_vector(annotation_row['annotation'], data_row['student_answers'])
         saliency = compute_student_answer_word_saliency_vector(attribution_row['attr_' + aggr], data_row, tokenizer)
         ap = average_precision_score(golden, saliency)
         AP[i] = ap

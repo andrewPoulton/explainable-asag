@@ -6,10 +6,16 @@ import transformers
 import torch
 from sklearn.metrics import average_precision_score
 from configuration import load_configs_from_file
+from wandb_interaction import get_model_from_run_id
+from dataset import dataloader
+from scipy.stats import spearmanr
 
 DATA_FILE = 'data/flat_semeval5way_test.csv'
 ATTRIBUTION_DIR = 'explained'
 ANNOTATION_DIR = '../annotator/annotations'
+
+
+### Human Agreement
 
 def get_tokenizer(model):
     model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[model]['model_name']
@@ -30,9 +36,11 @@ def get_annotations(annotation_dir):
         df = df.append(annotation_row, ignore_index = True)
     return df
 
-def read_attribution(attribution_dir, attribution_file_name):
+def read_attribution(attribution_dir, attribution_file_name, attr_is_pred = False):
     model, source, run_id, attribution_method = attribution_file_name.split('.')[0].split('_')
     df = pd.read_pickle(os.path.join(attribution_dir,attribution_file_name))
+    if attr_is_pred:
+        df = df[df['attr_class']== df['pred']]
     return {'df': df, 'model': model, 'source': source, 'run_id': run_id, 'attribution_method' : attribution_method}
 
 
@@ -75,11 +83,10 @@ def read_test_data(source):
     df = df.set_index('question_id')
     return df
 
-def compute_human_agreement(attribution_file_name, aggr = 'norm'):
+def compute_human_agreement(attribution_file_name, aggr = 'L2'):
     print('Computing human agreement (HA) for', attribution_file_name)
-    attributions = read_attribution(ATTRIBUTION_DIR, attribution_file_name)
+    attributions = read_attribution(ATTRIBUTION_DIR, attribution_file_name, attr_is_pred = True)
     tokenizer = get_tokenizer(attributions['model'])
-    df_attr = attributions['df'][attributions['df']['pred']==attributions['df']['attr_class']]
     df_anno = get_annotations(ANNOTATION_DIR)
     df_anno = df_anno[df_anno.source == attributions['source']]
     df = read_test_data(attributions['source'])
@@ -99,3 +106,49 @@ def compute_human_agreement(attribution_file_name, aggr = 'norm'):
     df_anno['AP'] = AP
     MAP = df_anno['AP'].mean()
     return MAP
+
+
+
+### Rationale Consistency
+
+
+
+def compute_diff_activation(model1, model2, instance):
+    return 0.0
+
+
+def compute_diff_attribution(attr1, attr2):
+    return 0.0
+
+
+def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = 'L2'):
+    A1 = read_attribution(ATTRIBUTION_DIR, attribution_file1, attr_is_pred=True)
+    A2 = read_attribution(ATTRIBUTION_DIR, attribution_file2, attr_is_pred=True)
+    assert A1['model'] == A2['model'] and A1['source'] == A2['source'] and A1['attribution_method'] == A2['attribution_method']
+    model1, config1 = get_model_from_run_id(A1['run_id'])
+    model2, config2 = get_model_from_run_id(A2['run_id'])
+    assert config1['num_labels'] == config2['num_labels']
+    config = config1
+    loader = dataloader(
+        val_mode = True,
+        data_file = DATA_FILE,
+        data_source = config['data_source'],
+        vocab_file = config['model_name'],
+        num_labels = config['num_labels'],
+        train_percent = 100,
+        batch_size = 1,
+        drop_last = False,
+        num_workers = 0)
+    attrs1 = A1['df']['attr_' + aggr]
+    attrs2 = A2['df']['attr_' + aggr]
+    len_data = len(loader.data)
+    assert len_data == len(df_attr1) == len(df_attr2)
+    diff_activation = np.empty(len_data)
+    diff_attribution = np.empty(len_data)
+    for i, batch in enumerate(loader):
+        attr1, attr2 = attrs1[i], attrs2[i]
+        diff_activation[i] = compute_diff_activation(model1, model2, batch.inputs)
+        diff_attribution[i] = compute_diff_attribution(attr1, attr2)
+
+    r = spearmanr(diff_activation, diff_attribution)
+    return r

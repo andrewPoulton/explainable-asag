@@ -110,23 +110,20 @@ def compute_human_agreement(attribution_file_name, aggr = 'L2'):
 
 
 ### Rationale Consistency
-
-
-
 def compute_diff_activation(model1, model2, instance):
     return 0.0
 
 
 def compute_diff_attribution(attr1, attr2):
-    return 0.0
+    return np.mean(np.abs(np.array(attr1) -np.array(attr2)))
 
 
-def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = 'L2'):
+def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = 'L2', **kwargs):
     A1 = read_attribution(ATTRIBUTION_DIR, attribution_file1, attr_is_pred=True)
     A2 = read_attribution(ATTRIBUTION_DIR, attribution_file2, attr_is_pred=True)
     assert A1['model'] == A2['model'] and A1['source'] == A2['source'] and A1['attribution_method'] == A2['attribution_method']
-    model1, config1 = get_model_from_run_id(A1['run_id'])
-    model2, config2 = get_model_from_run_id(A2['run_id'])
+    model1, config1 = get_model_from_run_id(A1['run_id'], **kwargs)
+    model2, config2 = get_model_from_run_id(A2['run_id'], **kwargs)
     assert config1['num_labels'] == config2['num_labels']
     config = config1
     loader = dataloader(
@@ -141,14 +138,13 @@ def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = '
         num_workers = 0)
     attrs1 = A1['df']['attr_' + aggr]
     attrs2 = A2['df']['attr_' + aggr]
-    len_data = len(loader.data)
-    assert len_data == len(df_attr1) == len(df_attr2)
+    len_data = len(loader)
+    assert len_data == len(attrs1) == len(attrs2)
     diff_activation = np.empty(len_data)
     diff_attribution = np.empty(len_data)
     for i, batch in enumerate(loader):
-        attr1, attr2 = attrs1[i], attrs2[i]
-        diff_activation[i] = compute_diff_activation(model1, model2, batch.inputs)
+        attr1, attr2 = attrs1.iloc[i], attrs2.iloc[i]
+        diff_activation[i] = compute_diff_activation(model1, model2, batch.input)
         diff_attribution[i] = compute_diff_attribution(attr1, attr2)
-
     r = spearmanr(diff_activation, diff_attribution)
     return r

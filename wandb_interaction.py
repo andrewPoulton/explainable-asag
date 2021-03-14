@@ -51,7 +51,7 @@ def download_run(run_id, ext = None):
             else:
                 continue
         else:
-            f.download(run_id, replace = True)
+            f.download(run_id, replace = replace)
             file_names.append(f.name)
     print('Downloaded:', *file_names)
     return file_names
@@ -66,9 +66,19 @@ def remove_run(run_id):
     pass
 
 
-def get_model_from_run_id(run_id):
-    file_names = download_run(run_id, ext = '.pt')
-    path_to_model = os.path.join(run_id, file_names[0])
+def get_model_from_run_id(run_id, remove = True, check_exists = False):
+    path_to_model = None
+    if check_exists:
+        if os.path.exists(run_id):
+            for f in os.scandir(run_id):
+                if f.name.endswith('.pt'):
+                    path_to_model =  os.path.join(run_id, f.name)
+                    break
+    if not path_to_model or not check_exists:
+        file_names = download_run(run_id, ext = '.pt')
+        path_to_model = os.path.join(run_id, file_names[0])
+
     mdl, config = load_model_from_disk(path_to_model)
-    remove_run(run_id)
+    if remove:
+        remove_run(run_id)
     return mdl, config

@@ -17,9 +17,6 @@ def f1_table(source):
     df['std'] = df.std(axis = 1)
     return df
 
-
-
-
 if __name__=='__main__':
     df = f1_table('scientsbank')
     df.to_csv('tables/f1_scientsbank.csv')

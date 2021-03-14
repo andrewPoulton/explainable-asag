@@ -36,7 +36,7 @@ def load_model_from_disk(path):
     weights, config = torch.load(path, map_location='cpu')
     config = config['_items']
     mdl = transformers.AutoModelForSequenceClassification.from_pretrained(config['model_name'])
-    if config['token_types']:
+    if config.get('token_types', False):
         token_key = [k for k in weights.keys() if 'token_type' in k]
         assert len(token_key) == 1, f'Error, there are multiple keys that look like token type embeddings {token_key}'
         num_token_types, embedding_size = weights[token_key.pop()].shape

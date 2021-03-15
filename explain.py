@@ -104,10 +104,14 @@ def explain_batch(attribution_method, model, batch, target = False, **kwargs):
 
 
 def explain(data_file, model_dir,  attribution_method):
-    for file in os.scandir(model_dir):
-        if file.name.endswith('.pt'):
-            model_path = os.path.join(model_dir, file.name)
-    model, config  = load_model_from_disk(model_path)
+    try:
+        for file in os.scandir(model_dir):
+            if file.name.endswith('.pt'):
+                model_path = os.path.join(model_dir, file.name)
+        model, config  = load_model_from_disk(model_path)
+    except:
+        print('COULD NOT LOAD MODEL FROM DIR:', model_dir)
+        return None
     model.eval()
     if __CUDA__:
         model.cuda()

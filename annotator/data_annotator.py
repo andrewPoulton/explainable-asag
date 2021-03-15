@@ -19,7 +19,7 @@ def spanify(text):
 
 @st.cache(allow_output_mutation=True)
 def init():
-    df = pd.read_csv('data/flat_semeval5way_test.csv')
+    df = pd.read_csv(os.path.join('..','data','flat_semeval5way_test.csv'))
     df = df[(df.origin == 'unseen_answers')&(df.source == source)]
     df['spans'] = df['student_answers'].apply(spanify)
 

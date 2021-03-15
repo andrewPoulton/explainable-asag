@@ -9,6 +9,9 @@ from configuration import load_configs_from_file
 from wandb_interaction import get_model_from_run_id
 from dataset import dataloader
 from scipy.stats import spearmanr
+from collections import defaultdict
+import re
+from functools import partial
 
 DATA_FILE = 'data/flat_semeval5way_test.csv'
 ATTRIBUTION_DIR = 'explained'
@@ -110,9 +113,50 @@ def compute_human_agreement(attribution_file_name, aggr = 'L2'):
 
 
 ### Rationale Consistency
-def compute_diff_activation(model1, model2, instance):
-    return 0.0
+###
+### get the activations of layers is based on
+### https://gist.github.com/Tushar-N/680633ec18f5cb4b47933da7d10902af
+### and
+### https://github.com/copenlu/xai-benchmark/blob/master/saliency_eval/consist_data.py
 
+def is_layer(name):
+    layer_pattern = re.compile('^[a-z]*\.encoder\.layer.[0-9]*$')
+    return layer_pattern.search(name) or name == 'classifier'
+
+def save_activation(activations, name, mod, inp, out):
+    # for encoder layers seems we get ([ tensor() ], )
+    # while for classifier we get [tensor()]
+    # so we select the corresponding te
+    act = out
+    while not isinstance(act, torch.Tensor) and len(act) == 1:
+        act = act[0]
+    activations[name] = act
+
+def get_activations(model, **kwargs):
+    activations = defaultdict(torch.Tensor)
+    handles = []
+    for name, module in model.named_modules():
+        if is_layer(name):
+            handle = module.register_forward_hook(partial(save_activation, activations, name))
+            handles.append(handle)
+
+    with torch.no_grad():
+        model(**kwargs)
+
+    # is this needed?
+    for handle in handles:
+        handle.remove()
+    return activations
+
+
+def compute_diff_activation(model1, model2, batch):
+    activations1 = get_activations(model1, input_ids = batch.input, attention_mask = batch.generate_mask())
+    activations2 = get_activations(model2, input_ids = batch.input, attention_mask = batch.generate_mask())
+    keys = activations1.keys()
+    assert  keys == activations2.keys()
+    act_diff = np.mean([(activations1[key]- activations2[key]).abs().mean().cpu().item() for key in keys])
+    print(act_diff)
+    return act_diff
 
 def compute_diff_attribution(attr1, attr2):
     return np.mean(np.abs(np.array(attr1) -np.array(attr2)))
@@ -124,6 +168,8 @@ def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = '
     assert A1['model'] == A2['model'] and A1['source'] == A2['source'] and A1['attribution_method'] == A2['attribution_method']
     model1, config1 = get_model_from_run_id(A1['run_id'], **kwargs)
     model2, config2 = get_model_from_run_id(A2['run_id'], **kwargs)
+    model1.eval()
+    model2.eval()
     assert config1['num_labels'] == config2['num_labels']
     config = config1
     loader = dataloader(
@@ -144,7 +190,12 @@ def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = '
     diff_attribution = np.empty(len_data)
     for i, batch in enumerate(loader):
         attr1, attr2 = attrs1.iloc[i], attrs2.iloc[i]
-        diff_activation[i] = compute_diff_activation(model1, model2, batch.input)
+        diff_activation[i] = compute_diff_activation(model1, model2, batch)
         diff_attribution[i] = compute_diff_attribution(attr1, attr2)
     r = spearmanr(diff_activation, diff_attribution)
     return r
+
+
+if __name__ == '__main__':
+    # for testing purposes.....
+    compute_rationale_consistency('bert-base-squad2_beetle_307twu8l_GradientShap.pkl', 'bert-base-squad2_beetle_307twu8l_GradientShap.pkl', aggr = 'L2', check_exists = True, remove = False)

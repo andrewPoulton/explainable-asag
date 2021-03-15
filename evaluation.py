@@ -15,10 +15,17 @@ from functools import partial
 
 DATA_FILE = 'data/flat_semeval5way_test.csv'
 ATTRIBUTION_DIR = 'explained'
-ANNOTATION_DIR = '../annotator/annotations'
+ANNOTATION_DIR = 'annotator/annotations'
 
 
 ### Human Agreement
+
+def get_question_id_index(source):
+    if source =='beetle':
+        return range(468)
+    if source =='scientsbank':
+        return range(1315,1854)
+
 
 def get_tokenizer(model):
     model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[model]['model_name']
@@ -44,6 +51,9 @@ def read_attribution(attribution_dir, attribution_file_name, attr_is_pred = Fals
     df = pd.read_pickle(os.path.join(attribution_dir,attribution_file_name))
     if attr_is_pred:
         df = df[df['attr_class']== df['pred']]
+        df['question_id'] = get_question_id_index(source)
+    else:
+        df['question_id'] = [i for i in get_question_id_index(source) for _ in range(df['attr_class'].max())]
     return {'df': df, 'model': model, 'source': source, 'run_id': run_id, 'attribution_method' : attribution_method}
 
 

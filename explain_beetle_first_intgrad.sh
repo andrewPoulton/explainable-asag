@@ -29,16 +29,16 @@ aipicd1s 	# distilbert-base-squad2 beetle-2
 # 4b47e7sq 	# albert-base-squad2 beetle-3
 # 21hrqqcx 	# bert-base-squad2 beetle-3
 # 3b2oms9i 	# distilroberta-base-squad2 beetle-3
-# #rsuxma90 	# roberta-base-squad2 beetle-3
+rsuxma90 	# roberta-base-squad2 beetle-3
 # 32p86rtw 	# distilbert-base-squad2 beetle-3
-# #2nxwh65v 	# distilroberta beetle-3
+2nxwh65v 	# distilroberta beetle-3
 # 2zg2ng33 	# distilbert-base beetle-3
 # xlaiu1tp 	# albert-large beetle-3
 # ce8hfp9w 	# albert-base beetle-3
-# #xpdm71ti 	# roberta-large beetle-3
+xpdm71ti 	# roberta-large beetle-3
 # 1xxv2t68 	# roberta-base beetle-3
 # 2yrdjb9g 	# bert-large beetle-3
-# #1fkyddwv 	# bert-base beetle-3
+1fkyddwv 	# bert-base beetle-3
 )
 
 declare -a AttributionMethods=(

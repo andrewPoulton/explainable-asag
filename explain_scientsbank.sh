@@ -38,7 +38,8 @@ vyg0gkqf 	# distilbert-base scientsbank-3
 24ct9efg 	# roberta-large scientsbank-3
 2tpaz9ju 	# roberta-base scientsbank-3
 29u5lpqa 	# bert-large scientsbank-3
-9h3wzj16 	# bert-base scientsbank-3)
+9h3wzj16 	# bert-base scientsbank-3
+)
 
 declare -a AttributionMethods=(
     "InputXGradient"

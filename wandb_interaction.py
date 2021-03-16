@@ -3,6 +3,7 @@
 
 import wandb
 import numpy as np
+import pandas as pd
 import os
 import shutil
 from explain import load_model_from_disk
@@ -28,7 +29,6 @@ def save_experiments_info():
         # run.config is the input metrics.  We remove special values that start with _.
         config_list.append({k:v for k,v in run.config.items() if not k.startswith('_')})
 
-    import pandas as pd
     summary_df = pd.DataFrame.from_records(summary_list)
     config_df = pd.DataFrame.from_records(config_list)
     my_stats_df = pd.DataFrame.from_records(my_stats_list)

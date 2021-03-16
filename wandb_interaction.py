@@ -33,8 +33,7 @@ def save_experiments_info():
     config_df = pd.DataFrame.from_records(config_list)
     my_stats_df = pd.DataFrame.from_records(my_stats_list)
     df = pd.concat([my_stats_df, config_df, summary_df], axis=1)
-
-    df.to_csv("tables/experiments.csv")
+    df.to_csv("results/experiments.csv")
     pass
 
 def download_run(run_id, ext = None):

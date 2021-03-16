@@ -1,7 +1,7 @@
 import pandas as pd
 
 def get_wandb_df():
-    wandb_df = pd.read_csv('tables/experiments.csv', index_col = 0)
+    wandb_df = pd.read_csv('results/experiments.csv', index_col = 0)
     return wandb_df
 
 def get_group(source):

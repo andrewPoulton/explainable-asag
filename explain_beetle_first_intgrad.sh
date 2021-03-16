@@ -1,28 +1,28 @@
 #! /bin/bash
 declare -a Runs=(
-1z15ocj6 	# albert-base-squad2 beetle-1
-1r5y32j9 	# bert-base-squad2 beetle-1
-2n3tv79j 	# distilroberta-base-squad2 beetle-1
-12tat8nu 	# roberta-base-squad2 beetle-1
-26345i1e 	# distilbert-base-squad2 beetle-1
-2kg72v22 	# distilroberta beetle-1
-hhvjxvr4 	# distilbert-base beetle-1
-7rusno3e 	# albert-large beetle-1
-37zy0hai 	# albert-base beetle-1
-2eyxkvx0 	# roberta-large beetle-1
-2owzw8vf 	# roberta-base beetle-1
-9c9fsnl5 	# bert-large beetle-1
-1hghnl1f 	# bert-base beetle-1
-18i0o3x5 	# albert-base-squad2 beetle-2
-307twu8l 	# bert-base-squad2 beetle-2
-1bqcxmlf 	# distilroberta-base-squad2 beetle-2
-ay0ti5uf 	# roberta-base-squad2 beetle-2
-aipicd1s 	# distilbert-base-squad2 beetle-2
-2clxn96i 	# distilroberta beetle-2
-2sbg632j 	# distilbert-base beetle-2
-5bw20ac2 	# albert-large beetle-2
-12xwwjt8 	# albert-base beetle-2
-2ht4csf5 	# roberta-large beetle-2
+# 1z15ocj6 	# albert-base-squad2 beetle-1
+# 1r5y32j9 	# bert-base-squad2 beetle-1
+# 2n3tv79j 	# distilroberta-base-squad2 beetle-1
+# 12tat8nu 	# roberta-base-squad2 beetle-1
+# 26345i1e 	# distilbert-base-squad2 beetle-1
+# 2kg72v22 	# distilroberta beetle-1
+# hhvjxvr4 	# distilbert-base beetle-1
+# 7rusno3e 	# albert-large beetle-1
+# 37zy0hai 	# albert-base beetle-1
+# 2eyxkvx0 	# roberta-large beetle-1
+# 2owzw8vf 	# roberta-base beetle-1
+# 9c9fsnl5 	# bert-large beetle-1
+# 1hghnl1f 	# bert-base beetle-1
+# 18i0o3x5 	# albert-base-squad2 beetle-2
+# 307twu8l 	# bert-base-squad2 beetle-2
+# 1bqcxmlf 	# distilroberta-base-squad2 beetle-2
+# ay0ti5uf 	# roberta-base-squad2 beetle-2
+# aipicd1s 	# distilbert-base-squad2 beetle-2
+# 2clxn96i 	# distilroberta beetle-2
+# 2sbg632j 	# distilbert-base beetle-2
+# 5bw20ac2 	# albert-large beetle-2
+# 12xwwjt8 	# albert-base beetle-2
+# 2ht4csf5 	# roberta-large beetle-2
 2k9zrrkb 	# roberta-base beetle-2
 # 38dwjr5w 	# bert-large beetle-2
 # hyd7o6ib 	# bert-base beetle-2

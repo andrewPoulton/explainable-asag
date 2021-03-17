@@ -1,0 +1,7 @@
+token_types:
+  token_types: True
+  group: token_types
+  max_patience: null
+
+from_scratch:
+  from_scratch: true

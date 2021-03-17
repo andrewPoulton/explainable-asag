@@ -1,7 +1,15 @@
 token_types:
   token_types: True
   group: token_types
-  max_patience: null
 
 from_scratch:
   from_scratch: true
+
+beetle:
+  data_source: beetle
+
+scientsbank:
+  data_source: scientsbank
+
+no_max:
+  max_patience: null

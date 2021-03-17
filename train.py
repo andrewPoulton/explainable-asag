@@ -1,6 +1,5 @@
 import dataset
 import training
-import validation
 import configuration
 import transformers
 import fire
@@ -100,7 +99,7 @@ def run(*configs, group = None):
             gc.collect()
             torch.cuda.empty_cache()
 
-            p,r,f1,val_acc = validation.val_loop(model, val_dataloader, cuda)
+            p,r,f1,val_acc = training.val_loop(model, val_dataloader, cuda)
             log_line = f'model: {config.model_name} | epoch: {epoch} | av_epoch_loss {av_epoch_loss:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f} \n'
             print(log_line[:-1])
             if config.log:

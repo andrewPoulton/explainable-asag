@@ -1,22 +1,15 @@
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    import torch
-    import dataset
-    import fire
-    import os
-    import json
-    import random
-    import pickle
-    from tqdm import tqdm
-#    from utils import  load_config, init_model, configure_model
-    from torch.utils.data import SequentialSampler, RandomSampler, BatchSampler, DataLoader
-    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-#    import wandb
-    import gc
-    import wandb
-
+import torch
+import fire
+import os
+import json
+import random
+import pickle
+import gc
+import wandb
+import dataset
+from tqdm import tqdm
+from torch.utils.data import SequentialSampler, RandomSampler, BatchSampler, DataLoader
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score#    import wandb
 
 def get_sub_module(module, submodule_name):
     for attr_str in dir(module):
@@ -73,3 +66,33 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = 
         batch.cpu()
         logits = logits.cpu().detach().argmax(-1).squeeze()
         return epoch_loss/(i+1)
+
+
+def metrics(predictions, y_true, metric_params):
+    precision = precision_score(y_true, predictions, **metric_params)
+    recall = recall_score(y_true, predictions, **metric_params)
+    f1 = f1_score(y_true, predictions, **metric_params)
+    accuracy = accuracy_score(y_true, predictions)
+    return precision, recall, f1, accuracy
+
+@torch.no_grad()
+def val_loop(model, loader, cuda):
+    model.eval()
+    # batches = list(loader)
+    preds = []
+    true_labels = []
+    with tqdm(total= len(loader.batch_sampler)) as pbar:
+        for i,batch in enumerate(loader):
+            if cuda:
+                batch.cuda()
+            mask = batch.generate_mask()
+            logits = model(input_ids = batch.input, attention_mask = mask)
+            logits = logits[0]
+            preds.append(logits.argmax(-1).squeeze().cpu())
+            true_labels.append(batch.labels.cpu())
+            pbar.update(1)
+    preds = torch.cat(preds)
+    y_true = torch.cat(true_labels)
+    model.train()
+    metric_params = {'average':'weighted', 'labels':list(range(model.config.num_labels))}
+    return metrics(preds, y_true, metric_params)

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import os
 import shutil
-from explain import load_model_from_disk
+from explanation import load_model_from_disk
 
 def save_experiments_info():
     api = wandb.Api()

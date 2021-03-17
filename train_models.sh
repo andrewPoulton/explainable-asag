@@ -18,7 +18,7 @@ for g in 1 2 3
 do
     for model in "${Models[@]}"
     do
-        python run.py "$model" "$@" --group $g
+        python train.py "$model" "$@" --group $g
         wandb sync --sync-all
         wandb sync --clean
         rm -r wandb

@@ -153,19 +153,17 @@ class SemEvalDataset(Dataset):
 
 
 
-def dataloader(**config):
-    # defualt configurations can be found in the config files
-    default = configuration.load()
-    data_file = config.get('train_data', default.train_data)
-    data_source = config.get('data_source', default.data_source)
-    vocab_file = config.get('vocab_file', default.model_name)
-    num_labels = config.get('num_labels', default.num_labels)
-    train_percent = config.get('train_percent', default.train_percent)
-    batch_size = config.get('batch_size', default.batch_size)
-    drop_last = config.get('drop_last', default.drop_last)
-    num_workers = config.get('num_workers', default.num_workers)
-    data_val_origin = config.get('data_val_origin', default.data_val_origin)
-    val_mode = config.get('val_mode', False)
+def dataloader(
+        data_file = '',
+        data_source = '',
+        vocab_file = '',
+        num_labels = 2,
+        train_percent = 100,
+        batch_size = 0,
+        drop_last = False,
+        num_workers = 0,
+        data_val_origin = 'answer',
+        val_mode = False)
     if val_mode and 'test' not in data_file:
         data_file = data_file.replace('train', 'test')
     # now we define the dataloader

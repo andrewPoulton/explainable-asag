@@ -138,6 +138,8 @@ class SemEvalDataset(Dataset):
         self.data['problem_index'] = problem_index
         self.data['original_label'] = og_labels
 
+    def get_row(self, i):
+        return self.data.loc[i]
     
     @staticmethod
     def collater(batch):
@@ -156,7 +158,7 @@ def dataloader(**config):
     default = configuration.load()
     data_file = config.get('train_data', default.train_data)
     data_source = config.get('data_source', default.data_source)
-    vocab_file = config.get('model_name', default.model_name)
+    vocab_file = config.get('vocab_file', default.model_name)
     num_labels = config.get('num_labels', default.num_labels)
     train_percent = config.get('train_percent', default.train_percent)
     batch_size = config.get('batch_size', default.batch_size)

@@ -153,8 +153,7 @@ class SemEvalDataset(Dataset):
 
 
 
-def dataloader(
-        data_file = '',
+def dataloader(data_file = '',
         data_source = '',
         vocab_file = '',
         num_labels = 2,

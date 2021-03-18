@@ -14,16 +14,17 @@ from wandbinteraction import (
     runs_info
 )
 
+
 RESULTS_DIR = 'results'
 
 def evaluate(fresh = False, metrics = ['HA', 'RA']):
-    df_testdata = get_testdata()
     if 'HA' in metrics:
         df_annotations = get_annotations(ANNOTATION_DIR)
         HA_list = []
         for attribution_file in os.scandir(ATTRIBUTION_DIR):
-            HA = compute_human_agreement(df_testdata, df_annotations, attribution_file.name)
-            HA_list.append(HA)
+            if attribution_file.name.endswith('.pkl'):
+                HA = compute_human_agreement(df_annotations, attribution_file.name)
+                HA_list.append(HA)
         HA_df = pd.DataFrame.from_records(HA_list)
         HA_df.to_csv(os.path.join(RESULTS_DIR, 'human_aggreement.csv'))
 

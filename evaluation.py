@@ -14,7 +14,9 @@ import re
 from functools import partial
 from itertools import chain, groupby
 from collections import Counter
-from dataset import dataloader
+from dataset import SemEvalDataset, dataloader
+from sklearn.preprocessing import MinMaxScaler
+
 DATA_FILE = 'data/flat_semeval5way_test.csv'
 ATTRIBUTION_DIR = 'attributions'
 ANNOTATION_DIR = 'annotator/annotations'
@@ -22,7 +24,7 @@ ANNOTATION_DIR = 'annotator/annotations'
 
 ### Human Agreement
 
-def get_question_id_index(source):
+def get_data_id_index(source):
     if source =='beetle':
         return range(468)
     if source =='scientsbank':
@@ -38,14 +40,14 @@ def get_tokenizer(model):
     return tokenizer
 
 def read_annotation(annotation_dir, annotation_file_name):
-    annotator, source, origin1, origin2, question_id = annotation_file_name.split('.')[0].split('_')
+    annotator, source, origin1, origin2, data_id = annotation_file_name.split('.')[0].split('_')
     origin = '_'.join([origin1,origin2])
     with open(os.path.join(annotation_dir, annotation_file_name), 'r') as f:
         annotation = f.readline()[:-1]
-    return {'annotator': annotator, 'source': source, 'origin': origin, 'question_id': question_id, 'annotation': annotation}
+    return {'annotator': annotator, 'source': source, 'origin': origin, 'data_id': data_id, 'annotation': annotation}
 
 def get_annotations(annotation_dir):
-    df = pd.DataFrame(columns = ['annotator','source','origin','annotation', 'question_id'])
+    df = pd.DataFrame(columns = ['annotator','source','origin','annotation', 'data_id'])
     for annotation_file in os.scandir(annotation_dir):
         annotation_row = read_annotation(annotation_dir, annotation_file.name)
         df = df.append(annotation_row, ignore_index = True)
@@ -54,8 +56,8 @@ def get_annotations(annotation_dir):
 def aggregate_annotators(df_annotations):
     ann_aggr = lambda anns: [a for a, i in Counter(chain(anns)).items() if i > 1]
     df = pd.DataFrame(columns = df_annotations.columns)
-    for question_id in df_annotations['question_id'].unique():
-        _df = df_annotations[df_annotations['question_id'] == question_id]
+    for data_id in df_annotations['data_id'].unique():
+        _df = df_annotations[df_annotations['data_id'] == data_id]
         _row = _df.iloc[0]
         _row['annotator'] = 'aggr'
         _row['annotation'] = ann_aggr(_df['annotation'])
@@ -63,13 +65,14 @@ def aggregate_annotators(df_annotations):
     return df
 
 def read_attribution(attribution_dir, attribution_file_name, attr_is_pred = False):
+    print('Read attribution file', attribution_file_name)
     model, source, run_id, attribution_method = attribution_file_name.split('.')[0].split('_')
     df = pd.read_pickle(os.path.join(attribution_dir,attribution_file_name))
     if attr_is_pred:
         df = df[df['attr_class']== df['pred']]
-        df['question_id'] = get_question_id_index(source)
+        df['data_id'] = get_data_id_index(source)
     else:
-        df['question_id'] = [i for i in get_question_id_index(source) for _ in range(df['attr_class'].max())]
+        df['data_id'] = [i for i in get_data_id_index(source) for _ in range(df['attr_class'].max())]
     return {'df': df, 'model': model, 'source': source, 'run_id': run_id, 'attribution_method' : attribution_method}
 
 
@@ -82,49 +85,70 @@ def list_word_token_idx(text, tokenizer, special_tokens = False):
     word_idx = [list(set(c[i+1:j])) for i,j in zip([-1]+spc_pos, spc_pos)]
     return word_idx
 
+def scale_to_unit_interval(attr):
+    return torch.Tensor(MinMaxScaler().fit_transform(attr.unsqueeze(0)).squeeze(0)).long()
+
+
 def compute_golden_saliency_vector(annotation, sentence):
     return np.array([1 if f'word_{k}' in annotation.split(',') else 0 for k in range(len( sentence.split()))])
 
-def scale_to_unit_interval(attr):
-    attr = np.array(attr)
-    attr = (attr - attr.min())/(attr.max() - attr.min())
-    return attr
-
 def compute_student_answer_word_saliency_vector(attr, data_row, tokenizer):
     # We need to know the indices for student answer tokens and how they group as words
-    question_tokens = tokenizer.encode(data_row['question_text'])
-    reference_tokens = tokenizer.encode(data_row['reference_answers'])
-    student_tokens = tokenizer.encode(data_row['student_answers'])
-    start_student_tokens = len(question_tokens) + len(reference_tokens) - 1
+    _attr = torch.Tensor(attr).long()
+    _attr = scale_to_unit_interval(_attr)
+    assert _attr.shape == data_row['token_types'].shape, 'Attribution not same shape as encoded data.'
+    _attr = torch.masked_select(_attr, data_row['token_types'].eq(3))
+    _attr = _attr.index_select(0, torch.arange(0, _attr.size(0) - 1, dtype = int))
     w_idx = list_word_token_idx(data_row['student_answers'], tokenizer)
-    # Then we normalize, select student answer (without [SEP]) and map to words
-    # print(len(question_tokens) + len(reference_tokens) + len(student_tokens) - 2, len(attr))
-    assert len(question_tokens) + len(reference_tokens) + len(student_tokens) - 2 == len(attr), 'Total number of tokens not equal to attr'
-    attr = scale_to_unit_interval(attr)
-    attr = attr[start_student_tokens:-1]
-    assert(len(attr) == max(list(chain(*w_idx)) )+1), 'Student tokens to words mismatch'
-    attr = [np.max(attr[w]) for w in w_idx]
-    return attr
+    assert _attr.size(0) == max(list(chain(*w_idx)) )+1, 'Student tokens to words mismatch'
+    _attr = [np.max(_attr.numpy()[w]) for w in w_idx]
+    return _attr
 
 
 def get_testdata():
     df = pd.read_csv(DATA_FILE)
-    df['question_id'] = df.index
+    df['data_id'] = df.index
     return df
 
-def compute_human_agreement(df_testdata, df_annotations, attribution_file_name, aggr = 'L2'):
+def get_testdataset(model, source):
+    dataset = SemEvalDataset(data_file = DATA_FILE, vocab_file = get_model_path(model))
+    dataset.set_data_source(source)
+    dataset.to_val_mode(source, 'answer')
+    print(f"Test dataset loaded from {DATA_FILE} with {dataset.data.shape[0]} lines.")
+    return dataset
+
+def get_testdataloader(model, source):
+    if torch.cuda.is_available():
+        num_workers = 8
+    else:
+        num_workers = 0
+    loader = dataloader(
+        val_mode = True,
+        data_file = DATA_FILE,
+        data_source = source,
+        vocab_file = get_model_path(model),
+        num_labels = 2,
+        train_percent = 100,
+        batch_size = 1,
+        drop_last = False,
+        num_workers = num_workers)
+    return loader
+
+
+def compute_human_agreement(df_annotations, attribution_file_name, aggr = 'L2'):
     print('Computing human agreement (HA) for', attribution_file_name)
     attribution = read_attribution(ATTRIBUTION_DIR, attribution_file_name, attr_is_pred = True)
-    tokenizer = get_tokenizer(attribution['model'])
-    df = df_testdata[df_testdata['source'] == attribution['source']].set_index('question_id')
+    loader = get_testdataloader(attribution['model'], attribution['source'])
+    dataset = loader.dataset
+    tokenizer = dataset.tokenizer
     df_anno = df_annotations[df_annotations['source'] == attribution['source']]
-    df_attr = attribution['df'].set_index('question_id')
+    df_attr = attribution['df'].set_index('data_id')
     AP = [0.0]*len(df_anno)
     for i in range(len(df_anno)):
         annotation_row = df_anno.iloc[i]
-        qid = int(annotation_row['question_id'])
-        data_row = df.loc[qid]
-        attribution_row = df_attr.loc[qid]
+        data_id = int(annotation_row['data_id'])
+        data_row = dataset.get_row(data_id)
+        attribution_row = df_attr.loc[data_id]
         golden = compute_golden_saliency_vector(annotation_row['annotation'], data_row['student_answers'])
         saliency = compute_student_answer_word_saliency_vector(attribution_row['attr_' + aggr], data_row, tokenizer)
         ap = average_precision_score(golden, saliency)

@@ -6,15 +6,16 @@ import transformers
 import torch
 from sklearn.metrics import average_precision_score
 from configuration import load_configs_from_file
-from wandb_interaction import get_model_from_run_id
+from wandbinteraction import get_model_from_run_id
 from dataset import dataloader
 from scipy.stats import spearmanr
 from collections import defaultdict
 import re
 from functools import partial
-
+from itertools import chain, groupby
+from collections import Counter
 DATA_FILE = 'data/flat_semeval5way_test.csv'
-ATTRIBUTION_DIR = 'explained'
+ATTRIBUTION_DIR = 'attributions'
 ANNOTATION_DIR = 'annotator/annotations'
 
 
@@ -26,9 +27,8 @@ def get_question_id_index(source):
     if source =='scientsbank':
         return range(1315,1854)
 
-
 def get_tokenizer(model):
-    model_name = load_configs_from_file(os.path.join('configs', 'pretrained.yml'))[model]['model_name']
+    model_name = load_configs_from_file(os.path.join('configs', 'models.yml'))[model]['model_name']
     tokenizer =  transformers.AutoTokenizer.from_pretrained(model_name, lowercase=True)
     return tokenizer
 
@@ -46,6 +46,17 @@ def get_annotations(annotation_dir):
         df = df.append(annotation_row, ignore_index = True)
     return df
 
+def aggregate_annotators(df_annotations):
+    ann_aggr = lambda anns: [a for a, i in Counter(chain(anns)).items() if i > 1]
+    df = pd.DataFrame(columns = df_annotations.columns)
+    for question_id in df_annotations['question_id'].unique():
+        _df = df_annotations[df_annotations['question_id'] == question_id]
+        _row = _df.iloc[0]
+        _row['annotator'] = 'aggr'
+        _row['annotation'] = ann_aggr(_df['annotation'])
+        df = df.append(_row, ignore_index = True)
+    return df
+
 def read_attribution(attribution_dir, attribution_file_name, attr_is_pred = False):
     model, source, run_id, attribution_method = attribution_file_name.split('.')[0].split('_')
     df = pd.read_pickle(os.path.join(attribution_dir,attribution_file_name))
@@ -60,8 +71,10 @@ def read_attribution(attribution_dir, attribution_file_name, attr_is_pred = Fals
 def list_word_token_idx(text, tokenizer, special_tokens = False):
     """Returns  list of form [[0,1], [2], [3,4]] where sublist corresponds to words in text and indices to the positions of the word-piece tokens after encoding"""
     word_encodings =  [tokenizer.encode(word, add_special_tokens = special_tokens) for word in text.split()]
-    it = iter(range(sum(len(w) for w in word_encodings)))
-    word_idx = [[next(it) for j in w] for w in word_encodings]
+    b = tokenizer.encode_plus(text, add_special_tokens = special_tokens)
+    c = [b.char_to_token(j) for j in range(len(text))] + [None]
+    spc_pos = [i for i,t in enumerate(c) if t == None]
+    word_idx = [list(set(c[i+1:j])) for i,j in zip([-1]+spc_pos, spc_pos)]
     return word_idx
 
 def compute_golden_saliency_vector(annotation, sentence):
@@ -72,7 +85,7 @@ def scale_to_unit_interval(attr):
     attr = (attr - attr.min())/(attr.max() - attr.min())
     return attr
 
-def compute_student_answer_word_saliency_vector(attr, data_row, tokenizer):
+def compute_student_answer_word_saliency_vector(attr, batch, tokenizer):
     # We need to know the indices for student answer tokens and how they group as words
     question_tokens = tokenizer.encode(data_row['question_text'])
     reference_tokens = tokenizer.encode(data_row['reference_answers'])
@@ -81,44 +94,52 @@ def compute_student_answer_word_saliency_vector(attr, data_row, tokenizer):
     end_student_tokens = len(question_tokens) + len(reference_tokens) + len(student_tokens) - 4
     st_idx = range(start_student_tokens, end_student_tokens)
     w_idx = list_word_token_idx(data_row['student_answers'], tokenizer)
-    assert(len(st_idx) == sum(len(w) for w in w_idx))
+    assert len(st_idx) == sum(len(w) for w in w_idx)
     # Then we normalize, select student answer (without [SEP]) and map to words
+    print(st_idx)
+    print(len(attr))
     attr = scale_to_unit_interval(attr)
     attr = attr[st_idx]
     attr = [np.max(attr[w]) for w in w_idx]
     return attr
 
 
-def read_test_data(source):
+def get_testdata():
     df = pd.read_csv(DATA_FILE)
     df['question_id'] = df.index
-    df = df[(df.source == source)&(df.origin.str.contains('answer'))]
-    df = df.set_index('question_id')
+    # if source in ('beetle', 'scientsbank'):
+    #     df = df[(df.source == source)&(df.origin.str.contains('answer'))]
+    # if set_index_to_qid:
+    #     df = df.set_index('question_id')
     return df
 
-def compute_human_agreement(attribution_file_name, aggr = 'L2'):
+def compute_human_agreement(df_testdata, df_annotations, attribution_file_name, aggr = 'L2'):
     print('Computing human agreement (HA) for', attribution_file_name)
-    attributions = read_attribution(ATTRIBUTION_DIR, attribution_file_name, attr_is_pred = True)
-    tokenizer = get_tokenizer(attributions['model'])
-    df_anno = get_annotations(ANNOTATION_DIR)
-    df_anno = df_anno[df_anno.source == attributions['source']]
-    df = read_test_data(attributions['source'])
-    assert(len(df) == len(df_attr))
-    df_attr.index = df.index
+    attribution = read_attribution(ATTRIBUTION_DIR, attribution_file_name, attr_is_pred = True)
+    tokenizer = get_tokenizer(attribution['model'])
+    df = df_testdata[df_testdata['source'] == attribution['source']].set_index('question_id')
+    df_anno = df_annotations[df_annotations['source'] == attribution['source']]
+    df_attr = attribution['df'].set_index('question_id')
     AP = [None]*len(df_anno)
     for i in range(len(df_anno)):
         annotation_row = df_anno.iloc[i]
-        data_row = df.loc[int(annotation_row['question_id'])]
-        attribution_row = df_attr.loc[int(annotation_row['question_id'])]
+        qid = int(annotation_row['question_id'])
+        data_row = df.loc[qid]
+        attribution_row = df_attr.loc[qid]
         golden = compute_golden_saliency_vector(annotation_row['annotation'], data_row['student_answers'])
+        # print(data_row['student_answers'])
+        # print(attribution_row['tokens'])
         saliency = compute_student_answer_word_saliency_vector(attribution_row['attr_' + aggr], data_row, tokenizer)
         ap = average_precision_score(golden, saliency)
         AP[i] = ap
         #print('AP is ', ap)
-
-    df_anno['AP'] = AP
-    MAP = df_anno['AP'].mean()
-    return MAP
+    MAP = np.mean(AP)
+    return {'attribution_file_name': attribution_file_name,
+            'HA': MAP,
+            'run_id': attribution['run_id'],
+            'model': attribution['model'],
+            'source': attribution['source'],
+            'attribution_method' : attribution['attribution_method']}
 
 
 
@@ -204,8 +225,3 @@ def compute_rationale_consistency(attribution_file1, attribution_file2, aggr = '
         diff_attribution[i] = compute_diff_attribution(attr1, attr2)
     r = spearmanr(diff_activation, diff_attribution)
     return r
-
-
-if __name__ == '__main__':
-    # for testing purposes.....
-    compute_rationale_consistency('bert-base-squad2_beetle_307twu8l_GradientShap.pkl', 'bert-base-squad2_beetle_307twu8l_GradientShap.pkl', aggr = 'L2', check_exists = True, remove = False)

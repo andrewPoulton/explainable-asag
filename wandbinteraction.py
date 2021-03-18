@@ -81,3 +81,34 @@ def get_model_from_run_id(run_id, remove = True, check_exists = False):
     if remove:
         remove_run(run_id)
     return mdl, config
+
+def get_wandb_df():
+    wandb_df = pd.read_csv('results/experiments.csv', index_col = 0)
+    return wandb_df
+
+def get_group(source, token_types = False):
+    wandb_df = get_wandb_df()
+    if source == 'scientsbank':
+        group = 'group'
+    elif source =='beetle':
+        group = 'beetlebeetle'
+    else:
+        error('Only allowed data sources: scientsbank and beetle')
+    return group
+
+def runs_info(source, drop_large = True, token_types = False, print_out = False):
+    df_wandb = get_wandb_df()
+    group = get_group(source, token_types = token_types)
+    dfs = [df_wandb[df_wandb['group'] == group + j][['run_id', 'name', 'token_types']] for j in ['-1','-2','-3']]
+    for i, _df in enumerate(dfs):
+        _df['group'] = i+1
+    df = pd.concat(dfs, axis = 0)
+    df['token_types'].fillna(False, inplace = True)
+    df['source'] = source
+    df.reset_index(drop = True, inplace = True)
+    if drop_large:
+        df = df[~df['name'].str.contains('large')]
+    if print_out:
+        for i, row in df.iterrows():
+            print(row.name, '\t#', f"{row['name']} {row['source']}-{row['group']}")
+    return df

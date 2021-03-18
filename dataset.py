@@ -119,7 +119,6 @@ class SemEvalDataset(Dataset):
             question_tokens = self.tokenizer.encode(row['question_text'])
             reference_tokens = self.tokenizer.encode(row['reference_answers'])
             student_tokens = self.tokenizer.encode(row['student_answers'])
-
             token_type_ids = [0] + [1]*(len(question_tokens)-1) + [2]*(len(reference_tokens)-1) + [3]*(len(student_tokens)-1)
             tokens = question_tokens + reference_tokens[1:] + student_tokens[1:]
             encoded_text[i] = torch.Tensor(tokens).long()
@@ -138,17 +137,30 @@ class SemEvalDataset(Dataset):
         self.data['problem_index'] = problem_index
         self.data['original_label'] = og_labels
 
-    def get_row(self, i):
-        return self.data.loc[i]
-    
+    def get_instance(self, idx, char_to_token = False):
+        row =  self._data.loc[i]
+        if char_to_token = True:
+            q = self.tokenizer.encode_plus(row['question_text'])
+            r = self.tokenizer.encode_plus(row['reference_answers'])
+            s = self.tokenizer.encode_plus(row['student_answers'])
+            q_char_to_token = [q.char_to_token(i) for i, c enumerate(row['question_text'])]
+            r_char_to_token = [r.char_to_token(i) for i, c enumerate(row['reference_answers'])]
+            s_char_to_token = [s.char_to_token(i) for i, c enumerate(row['student_answers'])]
+            r_char_to_token = [i + len(q.input_ids) - 1 if isinstance(i int) else i for i in r_char_to_token]
+            s_char_to_token = [i + len(q.input_ids) + len(r.input_ids) - 2 if isinstance(i, int) else i for i in s_char_to_token]
+            row['char_to_token'] = [q_char_to_token, r_char_to_token, s_char_to_token]
+        return row
+
     @staticmethod
     def collater(batch):
         input_ids = [b.encoded_text for b in batch]
         token_type_ids = [b.token_types for b in batch]
         labels = [b.labels for b in batch]
+        instance_ids = [b.name for b in batch]
         data = {'input':pad_tensor_batch(input_ids),
                 'token_type_ids':pad_tensor_batch(token_type_ids),
-                'labels': torch.Tensor(labels).long()}
+                'labels': torch.Tensor(labels).long(),
+                'instances': torch.Tensor(instance_ids).long()}
         return Batch(**data)
 
 

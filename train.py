@@ -98,12 +98,14 @@ def run(*configs, group = None):
             #tidy stuff up every epoch
             gc.collect()
             torch.cuda.empty_cache()
-
-            p,r,f1,val_acc = training.val_loop(model, val_dataloader, cuda)
+            metrics_weighted, metrics_macro = training.val_loop(model, val_dataloader, cuda)
+            p,r,f1,val_acc = metrics_weighted
+            p_m, r_m, f1_m, val_acc_m = metrics_macro
             log_line = f'model: {config.model_name} | epoch: {epoch} | av_epoch_loss {av_epoch_loss:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f} \n'
             print(log_line[:-1])
             if config.log:
                 wandb.log({'precision': p , 'recall': r , 'f1': f1 ,  'accuracy': val_acc,'av_epoch_loss': av_epoch_loss})
+                wandb.log({'precision-macro': p_m , 'recall-macro': r_m , 'f1-macro': f1_m ,  'accuracy-macrp': val_acc_m})
             if f1 > best_f1:
                 if config.log:
                     this_model =  os.path.join(wandb.run.dir,'best_f1.pt')

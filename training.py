@@ -94,5 +94,6 @@ def val_loop(model, loader, cuda):
     preds = torch.cat(preds)
     y_true = torch.cat(true_labels)
     model.train()
-    metric_params = {'average':'weighted', 'labels':list(range(model.config.num_labels))}
-    return metrics(preds, y_true, metric_params)
+    metric_params_weighted = {'average':'weighted', 'labels':list(range(model.config.num_labels))}
+    metric_params_macro =  {'average':'macro', 'labels':list(range(model.config.num_labels))}
+    return metrics(preds, y_true, metric_params_weighted), metrics(preds, y_true, metric_params_macro)

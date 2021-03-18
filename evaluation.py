@@ -14,6 +14,7 @@ import re
 from functools import partial
 from itertools import chain, groupby
 from collections import Counter
+from dataset import dataloader
 DATA_FILE = 'data/flat_semeval5way_test.csv'
 ATTRIBUTION_DIR = 'attributions'
 ANNOTATION_DIR = 'annotator/annotations'
@@ -27,9 +28,13 @@ def get_question_id_index(source):
     if source =='scientsbank':
         return range(1315,1854)
 
+def get_model_path(model):
+    model_path = load_configs_from_file(os.path.join('configs', 'models.yml'))[model]['model_name']
+    return model_path
+
 def get_tokenizer(model):
-    model_name = load_configs_from_file(os.path.join('configs', 'models.yml'))[model]['model_name']
-    tokenizer =  transformers.AutoTokenizer.from_pretrained(model_name, lowercase=True)
+    model_path = get_model_path(model)
+    tokenizer =  transformers.AutoTokenizer.from_pretrained(model_path, lowercase=True)
     return tokenizer
 
 def read_annotation(annotation_dir, annotation_file_name):
@@ -85,21 +90,19 @@ def scale_to_unit_interval(attr):
     attr = (attr - attr.min())/(attr.max() - attr.min())
     return attr
 
-def compute_student_answer_word_saliency_vector(attr, batch, tokenizer):
+def compute_student_answer_word_saliency_vector(attr, data_row, tokenizer):
     # We need to know the indices for student answer tokens and how they group as words
     question_tokens = tokenizer.encode(data_row['question_text'])
     reference_tokens = tokenizer.encode(data_row['reference_answers'])
     student_tokens = tokenizer.encode(data_row['student_answers'])
-    start_student_tokens = len(question_tokens) + len(reference_tokens) - 2
-    end_student_tokens = len(question_tokens) + len(reference_tokens) + len(student_tokens) - 4
-    st_idx = range(start_student_tokens, end_student_tokens)
+    start_student_tokens = len(question_tokens) + len(reference_tokens) - 1
     w_idx = list_word_token_idx(data_row['student_answers'], tokenizer)
-    assert len(st_idx) == sum(len(w) for w in w_idx)
     # Then we normalize, select student answer (without [SEP]) and map to words
-    print(st_idx)
-    print(len(attr))
+    # print(len(question_tokens) + len(reference_tokens) + len(student_tokens) - 2, len(attr))
+    assert len(question_tokens) + len(reference_tokens) + len(student_tokens) - 2 == len(attr), 'Total number of tokens not equal to attr'
     attr = scale_to_unit_interval(attr)
-    attr = attr[st_idx]
+    attr = attr[start_student_tokens:-1]
+    assert(len(attr) == max(list(chain(*w_idx)) )+1), 'Student tokens to words mismatch'
     attr = [np.max(attr[w]) for w in w_idx]
     return attr
 
@@ -107,10 +110,6 @@ def compute_student_answer_word_saliency_vector(attr, batch, tokenizer):
 def get_testdata():
     df = pd.read_csv(DATA_FILE)
     df['question_id'] = df.index
-    # if source in ('beetle', 'scientsbank'):
-    #     df = df[(df.source == source)&(df.origin.str.contains('answer'))]
-    # if set_index_to_qid:
-    #     df = df.set_index('question_id')
     return df
 
 def compute_human_agreement(df_testdata, df_annotations, attribution_file_name, aggr = 'L2'):
@@ -120,19 +119,17 @@ def compute_human_agreement(df_testdata, df_annotations, attribution_file_name, 
     df = df_testdata[df_testdata['source'] == attribution['source']].set_index('question_id')
     df_anno = df_annotations[df_annotations['source'] == attribution['source']]
     df_attr = attribution['df'].set_index('question_id')
-    AP = [None]*len(df_anno)
+    AP = [0.0]*len(df_anno)
     for i in range(len(df_anno)):
         annotation_row = df_anno.iloc[i]
         qid = int(annotation_row['question_id'])
         data_row = df.loc[qid]
         attribution_row = df_attr.loc[qid]
         golden = compute_golden_saliency_vector(annotation_row['annotation'], data_row['student_answers'])
-        # print(data_row['student_answers'])
-        # print(attribution_row['tokens'])
         saliency = compute_student_answer_word_saliency_vector(attribution_row['attr_' + aggr], data_row, tokenizer)
         ap = average_precision_score(golden, saliency)
         AP[i] = ap
-        #print('AP is ', ap)
+
     MAP = np.mean(AP)
     return {'attribution_file_name': attribution_file_name,
             'HA': MAP,

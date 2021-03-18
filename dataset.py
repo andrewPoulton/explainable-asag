@@ -165,20 +165,19 @@ class SemEvalDataset(Dataset):
 
 
 
-def dataloader(data_file = '',
-        data_source = '',
-        vocab_file =  '',
+def dataloader(data_file = None,
+        data_source = None,
+        vocab_file =  None,
         num_labels = 2,
         train_percent = 100,
-        batch_size = 0,
+        batch_size = None,
         drop_last = False,
-        num_workers = 0,
+        num_workers = None,
         data_val_origin = 'answer',
         val_mode = False):
 
     if val_mode and 'test' not in data_file:
         data_file = data_file.replace('train', 'test')
-    # now we define the dataloader
     data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
     data.set_data_source(data_source)
     print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")

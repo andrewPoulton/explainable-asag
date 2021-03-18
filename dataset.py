@@ -155,7 +155,7 @@ class SemEvalDataset(Dataset):
 
 def dataloader(data_file = '',
         data_source = '',
-        vocab_file =  ''
+        vocab_file =  '',
         num_labels = 2,
         train_percent = 100,
         batch_size = 0,

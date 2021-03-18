@@ -155,14 +155,15 @@ class SemEvalDataset(Dataset):
 
 def dataloader(data_file = '',
         data_source = '',
-        vocab_file = '',
+        vocab_file =  ''
         num_labels = 2,
         train_percent = 100,
         batch_size = 0,
         drop_last = False,
         num_workers = 0,
         data_val_origin = 'answer',
-        val_mode = False)
+        val_mode = False):
+
     if val_mode and 'test' not in data_file:
         data_file = data_file.replace('train', 'test')
     # now we define the dataloader

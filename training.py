@@ -25,7 +25,7 @@ def grad_norm(model):
     return sum(p.grad.pow(2).sum() if p.grad is not None else torch.tensor(0.) for p in model.parameters())**.5
 
 def compute_logits(model, batch, token_types):
-     mask = batch.generate_mask()
+    mask = batch.generate_mask()
     if token_types:
         logits = model(input_ids = batch.input, attention_mask = mask, token_type_ids = batch.token_type_ids)
     else:

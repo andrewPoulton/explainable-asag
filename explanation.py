@@ -44,42 +44,62 @@ def get_baseline(model, batch):
     baseline_inputs = torch.where(batch.token_type_ids.eq(3), torch.zeros_like(batch.input), batch.input)
     return get_embeds(model, baseline_inputs)
 
-
-def explainer(model, attribution_method = "IntegratedGradients"):
+def explainer(model, attribution_method, token_types):
     attribution_method = attributions.__dict__[attribution_method]
-    def func(embeds, model):
-        return model(inputs_embeds = embeds).logits
+    if token_types:
+        def func(embeds, model, token_type_ids):
+            return model(inputs_embeds = embeds, token_type_ids = token_type_ids).logits
+    else:
+        def func(embeds, model):
+            return model(inputs_embeds = embeds).logits
     return attribution_method(func)
 
-# def rank_tokens_by_attribution(batch, attributes, norm = 2, **kwargs):
-#     norm = kwargs.get("norm", norm)
-#     rank_order = attributes.norm(norm, dim = -1).argsort().squeeze()
-#     ordered_tokens = batch.input.cpu().squeeze()[rank_order].numpy()[::-1].tolist()
-#     return rank_order, ordered_tokens
 
-def summarize(attr, aggr = 'norm', norm = 2):
-    if aggr == 'norm':
-        attr =  attr.norm(norm, dim = -1).squeeze(0)
-    else:
+def summarize(attr, aggr):
+    if aggr == 'L2':
+        attr =  attr.norm(2, dim = -1).squeeze(0)
+    elif aggr == 'L1':
+        attr =  attr.norm(1, dim = -1).squeeze(0)
+    elif aggr == 'sum':
         attr = attr.sum(dim=-1).squeeze(0)
-    return attr.cpu().detach().numpy()
+    else:
+        raise Exception('No valid aggregation method in "summarize" attributions.')
+    return attr.cpu().detach().numpy().tolist()
 
 
-def explain_batch(attribution_method, model, batch, target = False, **kwargs):
+def explain_batch(attribution_method, model, token_types, batch, target = False, **kwargs):
     embeds = get_embeds(model, batch.input)
     with torch.no_grad():
-        logits = model(inputs_embeds = embeds).logits.cpu().squeeze()
-        pred = logits.argmax().item()
-        pred_prob = torch.nn.functional.softmax(logits, dim=0).max().item()
-    exp =  explainer(model, attribution_method)
+        if token_types:
+            logits = model(inputs_embeds = embeds, token_type_ids = batch.token_type_ids).logits.cpu().squeeze()
+        else:
+            logits = model(inputs_embeds = embeds).logits.cpu().squeeze()
+    pred = logits.argmax().item()
     if kwargs.get("baselines", False):
         baseline = get_baseline(model, batch)
         kwargs["baselines"] = baseline
     if not target:
         target = pred
+    target_prob = torch.nn.functional.softmax(logits, dim=0).numpy()[target]
+    exp =  explainer(model, attribution_method, token_types)
     if attribution_method == 'Occlusion':
         sliding_window_shape = (1,embeds.shape[-1])
-        attr = exp.attribute(embeds, sliding_window_shape, target = target, additional_forward_args = model,  **kwargs)
+        if token_types:
+            attr = exp.attribute(embeds, sliding_window_shape, target = target, additional_forward_args = (model, batch.token_type_ids),  **kwargs)
+        else:
+            attr = exp.attribute(embeds, sliding_window_shape, target = target, additional_forward_args = model,  **kwargs)
     else:
-        attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
-    return attr, pred, pred_prob
+        if token_types:
+            attr = exp.attribute(embeds, target = target, additional_forward_args = (model, batch.token_type_ids),  **kwargs)
+        else:
+            attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
+
+    return {'label': batch.labels.cpu().item(),
+            'pred': pred,
+            'attr_class': target,
+            'attr_class_pred_prob': target_prob,
+            'data_id': batch.instances.cpu().item(),
+            'attr_L2': summarize(attr, 'L2'),
+            'attr_L1': summarize(attr, 'L1'),
+            'attr_sum': summarize(attr, 'sum'),
+            'token_type_ids': batch.token_type_ids.cpu().numpy().tolist()}

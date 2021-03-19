@@ -11,8 +11,11 @@ from explanation import (
     summarize
 )
 from wandbinteraction import get_model_from_run_id
+import os
 
 __CUDA__ = torch.cuda.is_available()
+
+
 
 def explain(data_file, model_dir, attribution_method):
     try:
@@ -27,7 +30,7 @@ def explain(data_file, model_dir, attribution_method):
         except:
             print('COULD NOT DOWNLOAD MODEL FROM WANDB WITH RUN_ID:', model_dir)
             return None
-
+    token_types = config.get('token_types', False)
     model.eval()
     if __CUDA__:
         model.cuda()
@@ -46,46 +49,24 @@ def explain(data_file, model_dir, attribution_method):
         batch_size = 1,
         drop_last = False,
         num_workers = num_workers)
-    tokenizer = expl_dataloader.dataset.tokenizer
-    attr_L1_list = []
-    attr_L2_list = []
-    attr_sum_list = []
-    tokens_list = []
-    label_list = []
-    prob_list = []
-    pred_list = []
-    attr_class_list = []
-    attr_score_list = []
     # NOTE: This only works for batch_size = 1 and relies on it for now
     with tqdm(total=len(expl_dataloader.batch_sampler)) as pbar:
         pbar.set_description(f'Compute {attribution_method}:')
+        records = []
         for batch in expl_dataloader:
-            label = batch.labels.item()
             if __CUDA__:
                 batch.cuda()
             for target in range(config['num_labels']):
-                attr, pred, pred_prob  = explain_batch(attribution_method, model, batch, target = target, **kwargs)
-                attr_L1 = summarize(attr, aggr = 'norm', norm=1)
-                attr_L2 = summarize(attr, aggr = 'norm', norm=2)
-                attr_sum = summarize(attr, aggr = 'sum')
-                attr_score = attr.sum().cpu().item()
-                tokens = tokenizer.decode(batch.input.squeeze())
-                attr_L1_list.append(attr_L1)
-                attr_L2_list.append(attr_L2)
-                attr_sum_list.append(attr_sum)
-                tokens_list.append(tokens)
-                label_list.append(label)
-                prob_list.append(pred_prob)
-                pred_list.append(pred)
-                attr_class_list.append(target)
-                attr_score_list.append(attr_score)
+                explanation_row = explain_batch(attribution_method, model, token_types, batch, target = target, **kwargs)
+                records.append(explanation_row)
             batch.cpu()
             pbar.update(1)
-
-    expl = pd.DataFrame({'label': label_list, 'pred': pred_list, 'pred_prob': prob_list,
-                                   'attr_class': attr_class_list, 'attr_L1': attr_L1_list,'attr_L2': attr_L2_list, 'attr_sum': attr_sum_list,  'tokens': tokens_list})
-    expl.to_pickle(os.path.join('explained',  config['name'] + '_' + config['data_source'] + '_' + model_dir  + '_' + attribution_method + '.pkl'))
-
+    expl = pd.DataFrame.from_records(records)
+    file_name =  config['name']
+    if config['token_types']:
+        file_name += '=with-token-types'
+    file_name +=  '_' + config['data_source'] + '_' + model_dir  + '_' + attribution_method + '.pkl'
+    expl.to_pickle(os.path.join('explained', file_name))
     model.cpu()
     #return expl
 

@@ -52,20 +52,25 @@ def explain(data_file, model_dir, attribution_method):
     # NOTE: This only works for batch_size = 1 and relies on it for now
     with tqdm(total=len(expl_dataloader.batch_sampler)) as pbar:
         pbar.set_description(f'Compute {attribution_method}:')
-        records = []
+        explain_info = []
+        model_info = []
         for batch in expl_dataloader:
             if __CUDA__:
                 batch.cuda()
             for target in range(config['num_labels']):
                 explanation_row = explain_batch(attribution_method, model, token_types, batch, target = target, **kwargs)
-                records.append(explanation_row)
+                explain_info.append(explanation_row)
+                model_info.append({'model_path': config['model_name'],
+                                   'source': config['data_source'],
+                                   'attribution_method': attribution_method,
+                                   'run_id': model_dir})
             batch.cpu()
             pbar.update(1)
     expl = pd.DataFrame.from_records(records)
-    file_name =  config['name']
+    file_name =  config['data_source'] + "_" + config['name']
     if config['token_types']:
-        file_name += '=with-token-types'
-    file_name +=  '_' + config['data_source'] + '_' + model_dir  + '_' + attribution_method + '.pkl'
+        file_name += '=token-types'
+    file_name +=  '_' + model_dir  + '_' + attribution_method + '.pkl'
     expl.to_pickle(os.path.join('explained', file_name))
     model.cpu()
     #return expl

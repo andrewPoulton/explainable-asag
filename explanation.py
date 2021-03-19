@@ -94,12 +94,12 @@ def explain_batch(attribution_method, model, token_types, batch, target = False,
         else:
             attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
 
-    return {'label': batch.labels.cpu().item(),
+    return {'instance_id': batch.instance.cpu().item(),
+            'label': batch.labels.cpu().item(),
             'pred': pred,
             'attr_class': target,
-            'attr_class_pred_prob': target_prob,
-            'data_id': batch.instances.cpu().item(),
+            'attr_class_prob': target_prob,
             'attr_L2': summarize(attr, 'L2'),
             'attr_L1': summarize(attr, 'L1'),
-            'attr_sum': summarize(attr, 'sum'),
-            'token_type_ids': batch.token_type_ids.cpu().numpy().tolist()}
+            'attr_sum': summarize(attr, 'sum')
+            }

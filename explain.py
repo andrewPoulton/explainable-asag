@@ -14,27 +14,26 @@ from wandbinteraction import get_model_from_run_id
 import os
 
 __CUDA__ = torch.cuda.is_available()
+__EXPLANATIONS_DIR__ = 'explain'
 
-
-
-def explain(data_file, model_dir, attribution_method):
+def explain(data_file, run_id, attribution_method, val_data_origin = 'unseen_answers'):
     try:
-        for file in os.scandir(model_dir):
+        for file in os.scandir(run_id):
             if file.name.endswith('.pt'):
-                model_path = os.path.join(model_dir, file.name)
+                model_path = os.path.join(run_id, file.name)
                 model, config  = load_model_from_disk(model_path)
     except:
-        print('COULD NOT LOAD MODEL FROM DIR:', model_dir)
+        print('COULD NOT LOAD MODEL FROM DIR:', run_id)
         try:
-            model, config = get_model_from_run_id(model_dir, remove = False, check_exists = False)
+            model, config = get_model_from_run_id(run_id, remove = False, check_exists = False)
         except:
-            print('COULD NOT DOWNLOAD MODEL FROM WANDB WITH RUN_ID:', model_dir)
+            print('COULD NOT DOWNLOAD MODEL FROM WANDB WITH RUN_ID:', run_id)
             return None
     token_types = config.get('token_types', False)
     model.eval()
     if __CUDA__:
         model.cuda()
-    kwargs = load_configs_from_file('configs/explain.yml')["EXPLAIN"].get(attribution_method, {}) or {}
+    kwargs = load_configs_from_file(os.path.join('configs','explain.yml'))["EXPLAIN"].get(attribution_method, {}) or {}
     if __CUDA__:
         num_workers = 8
     else:
@@ -43,6 +42,7 @@ def explain(data_file, model_dir, attribution_method):
         val_mode = True,
         data_file = data_file,
         data_source = config['data_source'],
+        data_val_origin = val_data_origin,
         vocab_file = config['model_name'],
         num_labels = config['num_labels'],
         train_percent = 100,
@@ -68,7 +68,7 @@ def explain(data_file, model_dir, attribution_method):
     df['run_id'] =  run_id
     df['num_labels'] = config['num_labels']
     file_name =  config['group'] + "_" + config['name']  '_' + run_id  + '_' + attribution_method + '.pkl'
-    expl.to_pickle(os.path.join('explained', file_name))
+    expl.to_pickle(os.path.join(__EXPLANATIONS_DIR__, file_name))
     model.cpu()
     #return expl
 

@@ -15,6 +15,18 @@ import torch
 import re
 import configuration
 
+def get_word_structure(tokenizer, text, offset = 0, **kwargs):
+    encoded_plus = tokenizer.encode_plus(text)
+    char_to_token = [encoded_plus.char_to_token(i) for i, c in enumerate(text)]
+    char_to_token = [None] + char_to_token + [None]
+    if offset > 0:
+        char_to_token = [t + int(offset) if isinstance(t, int) else t for t in char_to_token]
+    none_pos = [i for i,t in enumerate(char_to_token) if t is None]
+    # words are the tokens between None's in char_to_token
+    word_structure = [list(set(char_to_token[i+1:j])) for i,j in zip(none_pos[:-1],none_pos[1:])]
+    return word_structure
+
+
 def pad_tensor_batch(tensors, pad_token = 0):
     max_length = max([t.size(0) for t in tensors])
     batch = torch.zeros((len(tensors), max_length)).long()
@@ -137,18 +149,15 @@ class SemEvalDataset(Dataset):
         self.data['problem_index'] = problem_index
         self.data['original_label'] = og_labels
 
-    def get_instance(self, idx, char_to_token = False):
-        row =  self._data.loc[i]
-        if char_to_token == True:
-            q = self.tokenizer.encode_plus(row['question_text'])
-            r = self.tokenizer.encode_plus(row['reference_answers'])
-            s = self.tokenizer.encode_plus(row['student_answers'])
-            q_char_to_token = [q.char_to_token(i) for i, c in enumerate(row['question_text'])]
-            r_char_to_token = [r.char_to_token(i) for i, c in enumerate(row['reference_answers'])]
-            s_char_to_token = [s.char_to_token(i) for i, c in enumerate(row['student_answers'])]
-            r_char_to_token = [i + len(q.input_ids) - 1 if isinstance(i, int) else i for i in r_char_to_token]
-            s_char_to_token = [i + len(q.input_ids) + len(r.input_ids) - 2 if isinstance(i, int) else i for i in s_char_to_token]
-            row['char_to_token'] = [q_char_to_token, r_char_to_token, s_char_to_token]
+    def get_instance(self, idx, word_structure =  False):
+        row =  self._data.loc[idx]
+        if word_structure:
+            q_ws = get_word_structure(self.tokenizer, row['question_text'], offset = 0)
+            ref_ws = get_word_structure(self.tokenizer, row['reference_answers'],
+                                        offset = (row['token_types']<2).count_nonzero()-1)
+            st_ws = get_word_structure(self.tokenizer, row['student_answers'],
+                                        offset = (row['token_types']<3).count_nonzero()-1)
+            row['word_structure'] = {'question_text': q_ws, 'reference_answer': ref_ws, 'student_answer': st_ws}
         return row
 
     @staticmethod
@@ -160,7 +169,7 @@ class SemEvalDataset(Dataset):
         data = {'input':pad_tensor_batch(input_ids),
                 'token_type_ids':pad_tensor_batch(token_type_ids),
                 'labels': torch.Tensor(labels).long(),
-                'instances': torch.Tensor(instance_ids).long()}
+                'instance': torch.Tensor(instance_ids).long()}
         return Batch(**data)
 
 

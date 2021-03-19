@@ -139,14 +139,14 @@ class SemEvalDataset(Dataset):
 
     def get_instance(self, idx, char_to_token = False):
         row =  self._data.loc[i]
-        if char_to_token = True:
+        if char_to_token == True:
             q = self.tokenizer.encode_plus(row['question_text'])
             r = self.tokenizer.encode_plus(row['reference_answers'])
             s = self.tokenizer.encode_plus(row['student_answers'])
-            q_char_to_token = [q.char_to_token(i) for i, c enumerate(row['question_text'])]
-            r_char_to_token = [r.char_to_token(i) for i, c enumerate(row['reference_answers'])]
-            s_char_to_token = [s.char_to_token(i) for i, c enumerate(row['student_answers'])]
-            r_char_to_token = [i + len(q.input_ids) - 1 if isinstance(i int) else i for i in r_char_to_token]
+            q_char_to_token = [q.char_to_token(i) for i, c in enumerate(row['question_text'])]
+            r_char_to_token = [r.char_to_token(i) for i, c in enumerate(row['reference_answers'])]
+            s_char_to_token = [s.char_to_token(i) for i, c in enumerate(row['student_answers'])]
+            r_char_to_token = [i + len(q.input_ids) - 1 if isinstance(i, int) else i for i in r_char_to_token]
             s_char_to_token = [i + len(q.input_ids) + len(r.input_ids) - 2 if isinstance(i, int) else i for i in s_char_to_token]
             row['char_to_token'] = [q_char_to_token, r_char_to_token, s_char_to_token]
         return row

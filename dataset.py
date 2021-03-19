@@ -14,6 +14,10 @@ import pandas as pd
 import torch
 import re
 import configuration
+import os
+
+__TRAIN_DATA__ = os.path.join('data', 'flat_semeval5way_train.csv')
+__TEST_DATA__ = os.path.join('data', 'flat_semeval5way_test.csv')
 
 def get_word_structure(tokenizer, text, offset = 0, **kwargs):
     encoded_plus = tokenizer.encode_plus(text)
@@ -65,7 +69,7 @@ class Batch(SimpleNamespace):
 
 
 class SemEvalDataset(Dataset):
-    def __init__(self, data_file = 'data/flat_semeval5way_train.csv', vocab_file = 'bert-base-uncased',  num_labels = 2, train_percent = 100):
+    def __init__(self, data_file = __TRAIN_DATA__, vocab_file = 'bert-base-uncased',  num_labels = 2, train_percent = 100):
         self.data = pd.read_csv(data_file)
         self.num_labels = num_labels
         self.tokenizer = AutoTokenizer.from_pretrained(vocab_file, lowercase=True)
@@ -150,7 +154,7 @@ class SemEvalDataset(Dataset):
         self.data['original_label'] = og_labels
 
     def get_instance(self, idx, word_structure =  False):
-        row =  self._data.loc[idx]
+        row =  self._data.loc[int(idx)]
         if word_structure:
             q_ws = get_word_structure(self.tokenizer, row['question_text'], offset = 0)
             ref_ws = get_word_structure(self.tokenizer, row['reference_answers'],
@@ -179,10 +183,10 @@ def dataloader(data_file = None,
         vocab_file =  None,
         num_labels = 2,
         train_percent = 100,
-        batch_size = None,
+        batch_size = 1,
         drop_last = False,
-        num_workers = None,
-        data_val_origin = 'answer',
+        num_workers = 0,
+        data_val_origin = 'unseen_answers',
         val_mode = False):
 
     if val_mode and 'test' not in data_file:

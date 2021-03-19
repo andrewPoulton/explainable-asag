@@ -98,7 +98,7 @@ def run(*configs, group = None):
             #tidy stuff up every epoch
             gc.collect()
             torch.cuda.empty_cache()
-            metrics_weighted, metrics_macro = training.val_loop(model, val_dataloader, cuda)
+            metrics_weighted, metrics_macro = training.val_loop(model, val_dataloader, cuda, token_types = config.token_types)
             p,r,f1,val_acc = metrics_weighted
             p_m, r_m, f1_m, val_acc_m = metrics_macro
             log_line = f'model: {config.model_name} | epoch: {epoch} | av_epoch_loss {av_epoch_loss:.5f} | f1: {f1:.5f} | accuracy: {val_acc:.5f} \n'

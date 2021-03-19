@@ -24,6 +24,15 @@ def get_sub_module(module, submodule_name):
 def grad_norm(model):
     return sum(p.grad.pow(2).sum() if p.grad is not None else torch.tensor(0.) for p in model.parameters())**.5
 
+def compute_logits(model, batch, token_types):
+     mask = batch.generate_mask()
+    if token_types:
+        logits = model(input_ids = batch.input, attention_mask = mask, token_type_ids = batch.token_type_ids)
+    else:
+        logits = model(input_ids = batch.input, attention_mask = mask)
+    logits = logits[0]
+    return logits
+
 def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = False, token_types = False):
     loss_fn = torch.nn.CrossEntropyLoss()
     model.train()
@@ -33,12 +42,7 @@ def train_epoch(loader, model, optimizer, lr_scheduler, num_labels, cuda, log = 
             if cuda:
                 batch.cuda()
             optimizer.zero_grad()
-            mask = batch.generate_mask()
-            if token_types:
-                logits = model(input_ids = batch.input, attention_mask = mask, token_type_ids = batch.token_type_ids)
-            else:
-                logits = model(input_ids = batch.input, attention_mask = mask)
-            logits = logits[0]
+            logits = compute_logits(model, batch, token_types)
             # import pdb; pdb.set_trace()
             loss = loss_fn(logits.view(-1, num_labels), batch.labels.view(-1))
             loss.backward()
@@ -76,7 +80,7 @@ def metrics(predictions, y_true, metric_params):
     return precision, recall, f1, accuracy
 
 @torch.no_grad()
-def val_loop(model, loader, cuda):
+def val_loop(model, loader, cuda,  token_types = False):
     model.eval()
     # batches = list(loader)
     preds = []
@@ -85,9 +89,7 @@ def val_loop(model, loader, cuda):
         for i,batch in enumerate(loader):
             if cuda:
                 batch.cuda()
-            mask = batch.generate_mask()
-            logits = model(input_ids = batch.input, attention_mask = mask)
-            logits = logits[0]
+            logits = compute_logits(model, batch, token_types)
             preds.append(logits.argmax(-1).squeeze().cpu())
             true_labels.append(batch.labels.cpu())
             pbar.update(1)

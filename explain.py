@@ -14,7 +14,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
     if not os.path.isdir(__EXPLANATIONS_DIR__):
         os.mkdir(__EXPLANATIONS_DIR__)
     for run_id in get_run_ids(*wandb_groups):
-        model, config = load_model_from_run_id(run_id, remove = False, check_exists = True)
+        model, config = load_model_from_run_id(run_id, remove = True, check_exists = True)
         loader = dataloader(
             data_file = __TEST_DATA__,
             val_mode = True,

@@ -31,6 +31,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
         df = explain_model(loader, model, config,  attr_methods, origin, __CUDA__)
         df['run_id'] = run_id
         df['model'] = config['name']
+        df['model_path'] = config['model_name']
         df['group'] = config['group']
         if not os.path.isdir(os.path.join(__EXPLANATIONS_DIR__, config['group'])):
             os.mkdir(os.path.join(__EXPLANATIONS_DIR__, config['group']))

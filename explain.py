@@ -8,7 +8,7 @@ from explanation import explain_model
 from wandbinteraction import get_run_ids, load_model_from_run_id
 
 __CUDA__ = torch.cuda.is_available()
-__EXPLANATIONS_DIR__ = 'explain'
+__EXPLANATIONS_DIR__ = 'explained'
 
 def explain(*wandb_groups, origin = 'unseen_answers'):
     if not os.path.isdir(__EXPLANATIONS_DIR__):
@@ -32,10 +32,13 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
         df['run_id'] = run_id
         df['model'] = config['name']
         df['model_path'] = config['model_name']
+        df['source'] = config['data_source']
+        df['origin'] = origin
+        df['num_labels'] = config['num_labels']
         df['group'] = config['group']
         if not os.path.isdir(os.path.join(__EXPLANATIONS_DIR__, config['group'])):
             os.mkdir(os.path.join(__EXPLANATIONS_DIR__, config['group']))
-        df.to_pkl(os.path.join(__EXPLANATIONS_DIR__, config['group'], run_id + '.pkl'))
+        df.to_pickle(os.path.join(__EXPLANATIONS_DIR__, config['group'], run_id + '.pkl'))
 
 
 if __name__=='__main__':

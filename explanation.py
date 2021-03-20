@@ -1,41 +1,14 @@
 import torch
 import transformers
 import captum.attr as attributions
-
-def update_token_type_embeddings(module, embedding_size, num_token_types = 4):
-    for attr_str in dir(module):
-        if attr_str == "token_type_embeddings":
-            old_embeddings = module.__getattr__(attr_str)
-            new_embeddings = torch.nn.Embedding(num_token_types, embedding_size)
-            setattr(module, attr_str, new_embeddings)
-            print(f"Updated token_type_embedding from {old_embeddings} to {new_embeddings}.")
-            return
-
-    for n, ch in module.named_children():
-        embeds = update_token_type_embeddings(ch, embedding_size, num_token_types)
-
-def load_model_from_disk(path):
-    weights, config = torch.load(path, map_location='cpu')
-    config = config['_items']
-    mdl = transformers.AutoModelForSequenceClassification.from_pretrained(config['model_name'])
-    if config.get('token_types', False):
-        token_key = [k for k in weights.keys() if 'token_type' in k]
-        assert len(token_key) == 1, f'Error, there are multiple keys that look like token type embeddings {token_key}'
-        num_token_types, embedding_size = weights[token_key.pop()].shape
-        update_token_type_embeddings(mdl, embedding_size, num_token_types)
-    mdl.load_state_dict(weights)
-    print(f"Loaded model {config['model_name']} from {path} successfully.")
-    return mdl, config
-
-def get_word_embeddings(module):
-    for attr_str in dir(module):
-        if attr_str == "word_embeddings":
-            return  getattr(module, attr_str)
-
-    for n, ch in module.named_children():
-        embeds = get_word_embeddings(ch)
-        if embeds:
-            return embeds
+from wandbinteraction import load_model_from_run_id
+from modelhandling import get_word_embeddings
+from training import compute_logits
+from configuration import load_configs_from_file
+from tqdm import tqdm
+import os
+import gc
+import pandas as pd
 
 def get_embeds(model, inputs):
     return get_word_embeddings(model)(inputs)
@@ -54,7 +27,6 @@ def explainer(model, attribution_method, token_types):
             return model(inputs_embeds = embeds).logits
     return attribution_method(func)
 
-
 def summarize(attr, aggr):
     if aggr == 'L2':
         attr =  attr.norm(2, dim = -1).squeeze(0)
@@ -67,21 +39,10 @@ def summarize(attr, aggr):
     return attr.cpu().detach().numpy().tolist()
 
 
-def explain_batch(attribution_method, model, token_types, batch, target = False, **kwargs):
+def explain_batch(attribution_method, model, token_types, batch, target, **kwargs):
     embeds = get_embeds(model, batch.input)
-    with torch.no_grad():
-        if token_types:
-            logits = model(inputs_embeds = embeds, token_type_ids = batch.token_type_ids).logits.cpu().squeeze()
-        else:
-            logits = model(inputs_embeds = embeds).logits.cpu().squeeze()
-    pred = logits.argmax().item()
-    if kwargs.get("baselines", False):
-        baseline = get_baseline(model, batch)
-        kwargs["baselines"] = baseline
-    if not target:
-        target = pred
-    target_prob = torch.nn.functional.softmax(logits, dim=0).numpy()[target]
     exp =  explainer(model, attribution_method, token_types)
+
     if attribution_method == 'Occlusion':
         sliding_window_shape = (1,embeds.shape[-1])
         if token_types:
@@ -94,12 +55,44 @@ def explain_batch(attribution_method, model, token_types, batch, target = False,
         else:
             attr = exp.attribute(embeds, target = target, additional_forward_args = model,  **kwargs)
 
-    return {'instance_id': batch.instance.cpu().item(),
-            'label': batch.labels.cpu().item(),
-            'pred': pred,
-            'attr_class': target,
-            'attr_class_prob': target_prob,
-            'attr_L2': summarize(attr, 'L2'),
-            'attr_L1': summarize(attr, 'L1'),
-            'attr_sum': summarize(attr, 'sum')
+    return {
+            'L2': summarize(attr, 'L2'),
+            'L1': summarize(attr, 'L1'),
+            'sum': summarize(attr, 'sum')
             }
+
+
+def explain_model(loader, model, config,  attr_methods, origin, cuda):
+    token_types = config['token_types']
+    model.eval()
+    if cuda:
+        model.cuda()
+    with tqdm(total=len(loader.batch_sampler)) as pbar:
+        pbar.set_description('Compute attributions')
+        explain_run = []
+        for batch in loader:
+            if cuda:
+                batch.cuda()
+            with torch.no_grad():
+                logits = compute_logits(model, batch, config.get('token_types', False)).squeeze()
+            for attr_class in range(config['num_labels']):
+                row = {'instance_id': batch.instance.cpu().item(),
+                       'label': batch.labels.cpu().item(),
+                       'pred': logits.argmax().cpu().item(),
+                       'attr_class': attr_class,
+                       'attr_class_pred_prob': torch.nn.functional.softmax(logits, dim = 0).cpu().numpy()[attr_class]}
+                for attribution_method in attr_methods:
+                    kwargs =  load_configs_from_file(os.path.join('configs','explain.yml'))["EXPLAIN"].get(attribution_method) or {}
+                    if kwargs.get("baselines", False):
+                        baseline = get_baseline(model, batch)
+                        kwargs["baselines"] = baseline
+                    attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
+                    row.update({attribution_method: attr})
+                explain_run.append(row)
+            batch.cpu()
+            pbar.update(1)
+        model.cpu()
+        gc.collect()
+        torch.cuda.empty_cache()
+        df = pd.DataFrame.from_records(explain_run)
+    return df

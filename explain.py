@@ -14,7 +14,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
     if not os.path.isdir(__EXPLANATIONS_DIR__):
         os.mkdir(__EXPLANATIONS_DIR__)
     for run in get_runs(*wandb_groups):
-        if os.path.isfile(os.path.join(__EXPLANATIONS_DIR__, run.config['group'], run.id + 'pkl')):
+        if os.path.isfile(os.path.join(__EXPLANATIONS_DIR__, run.config['group'], run.id + '.pkl')):
             print('Run already explained:', run.id)
             print('Going on to the next...')
             break

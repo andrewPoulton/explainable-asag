@@ -11,47 +11,56 @@ from modelhandling import load_model_from_disk
 __api__ = wandb.Api()
 __runs__ = __api__.runs("sebaseliens/explainable-asag")
 
-def download_run(run_id, ext = None):
-    run = __api__.run("sebaseliens/explainable-asag/" + run_id)
+
+def download(run, ext = None):
     file_names = []
     for f in run.files():
         if ext:
             if f.name.endswith(ext):
-                print('Downloading:', os.path.join(run_id, f.name))
-                f.download(run_id, replace = True)
+                print('Downloading:', os.path.join(run.id, f.name))
+                f.download(run.id, replace = True)
                 file_names.append(f.name)
                 break
             else:
                 continue
         else:
-            f.download(run_id, replace = replace)
+            f.download(run.id, replace = replace)
             file_names.append(f.name)
     return file_names
+
+
+def download_run(run_id, ext = None):
+    run = __api__.run("sebaseliens/explainable-asag/" + run_id)
+    return download(run, ext = ext)
 
 def remove_run(run_id):
     if run_id in [run.id for run in __runs__]:
         shutil.rmtree(run_id)
-        print('Deleted:', run_id)
+        print('Deleted:', os.path.join(run_id,''))
     else:
         print(f'Did not remove {run_id}. It is not a run.')
     pass
 
-def load_model_from_run_id(run_id, remove = True, check_exists = False):
+def load_model_from_run(run, remove = True, check_exists = False):
     path_to_model = None
     if check_exists:
-        if os.path.exists(run_id):
-            for f in os.scandir(run_id):
+        if os.path.exists(run.id):
+            for f in os.scandir(run.id):
                 if f.name.endswith('.pt'):
                     path_to_model =  os.path.join(run_id, f.name)
                     break
     if not path_to_model or not check_exists:
-        file_names = download_run(run_id, ext = '.pt')
-        path_to_model = os.path.join(run_id, file_names[0])
+        file_names = download(run, ext = '.pt')
+        path_to_model = os.path.join(run.id, file_names[0])
 
     mdl, config = load_model_from_disk(path_to_model)
     if remove:
-        remove_run(run_id)
+        remove_run(run.id)
     return mdl, config
+
+def load_model_from_run_id(run_id, remove = True, check_exists = False):
+    run = __api__.run("sebaseliens/explainable-asag/" + run_id)
+    return load_model_from_run(run, remove = remove, check_exists = check_exists)
 
 def download_experiment_info():
     my_stats_list = []
@@ -80,3 +89,6 @@ def download_experiment_info():
 
 def get_run_ids(*groups):
     return [run.id for run in __runs__ if run.config['group'] in groups or not groups]
+
+def get_runs(*groups):
+    return [run for run in __runs__ if run.config['group'] in groups or not groups]

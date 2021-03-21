@@ -91,6 +91,9 @@ def explain_model(loader, model, config,  attr_methods, origin, cuda):
                 explain_run.append(row)
             batch.cpu()
             pbar.update(1)
+            # NOTE: for local test only, delete
+            if not cuda:
+                break
         model.cpu()
         gc.collect()
         torch.cuda.empty_cache()

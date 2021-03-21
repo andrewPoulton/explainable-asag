@@ -17,7 +17,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
         if os.path.isfile(os.path.join(__EXPLANATIONS_DIR__, run.config['group'], run.id + '.pkl')):
             print('Run already explained:', run.id)
             print('Going on to the next...')
-            break
+            continue
         model, config = load_model_from_run(run, remove = True, check_exists = True)
         loader = dataloader(
             data_file = __TEST_DATA__,

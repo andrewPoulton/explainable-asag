@@ -154,14 +154,14 @@ class SemEvalDataset(Dataset):
         self.data['original_label'] = og_labels
 
     def get_instance(self, idx, word_structure =  False):
-        row =  self._data.loc[int(idx)]
+        row =  self._data.loc[int(idx)].to_dict()
         if word_structure:
             q_ws = get_word_structure(self.tokenizer, row['question_text'], offset = 0)
             ref_ws = get_word_structure(self.tokenizer, row['reference_answers'],
                                         offset = (row['token_types']<2).count_nonzero()-1)
             st_ws = get_word_structure(self.tokenizer, row['student_answers'],
                                         offset = (row['token_types']<3).count_nonzero()-1)
-            row['word_structure'] = {'question_text': q_ws, 'reference_answer': ref_ws, 'student_answer': st_ws}
+            row.update({'word_structure': {'question_text': q_ws, 'reference_answer': ref_ws, 'student_answer': st_ws}})
         return row
 
     @staticmethod

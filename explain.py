@@ -40,6 +40,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
         df['origin'] = origin
         df['num_labels'] = config['num_labels']
         df['group'] = config['group']
+        df['token_types'] = config['token_types']
         if not os.path.isdir(os.path.join(__EXPLANATIONS_DIR__, config['group'])):
             os.mkdir(os.path.join(__EXPLANATIONS_DIR__, config['group']))
         df.to_pickle(os.path.join(__EXPLANATIONS_DIR__, config['group'], run.id + '.pkl'))

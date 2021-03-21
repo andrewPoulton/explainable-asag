@@ -24,16 +24,12 @@ warnings.filterwarnings("error")
 
 def golden_saliency(annotation, instance_id, dataset):
     student_answer_words = dataset.get_instance(instance_id)['student_answers'].split()
-    golden =  [0 for _ in student_answer_words]
-    for k in range(len(golden)):
-        if annotation:
-            for w in  annotation.split(','):
-                if str(k) in w:
-                    golden[k] = 1
+    golden =  [1 if f'word_{k}' in annotation.split(',')
+               else 0 for k,w in enumerate(student_answer_words)]
     return golden
 
 def ann_aggr_function(anns):
-    return [word_k for word_k, i in Counter(chain(anns)).items() if i > 1]
+    return ','.join([word_k for word_k, i in Counter(chain(anns)).items() if i > 1])
 
 def scale_to_unit_interval(attr):
     _attr = MinMaxScaler().fit_transform([[a] for a in attr])
@@ -124,7 +120,7 @@ class AttributionData:
     def compute_human_agreement(self, annotation_data):
         annotation_data.set_source(self.source)
         df = self.df[self.df['pred'] == self.df['attr_class']].set_index('instance_id')
-        ave_prec_scores = []
+        ap_scores = []
         for i, ann in tqdm(annotation_data.annotations.iterrows(), desc = 'Compute average precision scores'):
             annotation = ann['annotation']
             instance_id = ann['instance_id']
@@ -133,19 +129,15 @@ class AttributionData:
             if not golden:
                 df = df.drop(instance_id, axis=0)
             else:
-                aps_instance = dict()
+                ap_instance = dict()
                 for attribution_method in self.attr_methods:
                     for aggr, attr in df.loc[instance_id, attribution_method].items():
                         attr = scale_to_unit_interval(attr)
                         attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
-                        try:
-                            ap = average_precision_score(golden, attr)
-                        except:
-                            print(instance_id,attribution_method + '_' + aggr,
-                                  ap, annotation)
-                        aps_instance.update({attribution_method + '_' + aggr : ap})
-                ave_prec_scores.append(aps_instance)
-        ha = pd.DataFrame.from_records(ave_prec_scores)
+                        ap = average_precision_score(golden, attr)
+                        ap_instance.update({attribution_method + '_' + aggr : ap})
+                ap_scores.append(ap_instance)
+        ha = pd.DataFrame.from_records(ap_scores)
         ha = ha.mean(axis=0).to_dict()
         return ha
 
@@ -163,8 +155,8 @@ def evaluate_human_agreement(annotations_dir, *attr_files):
 
     ha_df = pd.DataFrame.from_records(ha_list)
     run_df = pd.DataFrame.from_dict({'run_id': run_ids})
-    df = pd.concat([run_df, ha_df])
-
+    df = pd.concat([run_df, ha_df], axis = 1)
+    return df
 
 
     # MAP = np.mean(AP)

@@ -18,8 +18,16 @@ from sklearn.preprocessing import MinMaxScaler
 from dataset import SemEvalDataset, dataloader
 from tqdm import tqdm
 from configuration import load_configs_from_file
+from modelhandling import get_layer_activations
+from wandbinteraction import load_model_from_run, remove_run
 import warnings
-warnings.filterwarnings("error")
+import gc
+from collections import defaultdict
+
+#warnings.filterwarnings("error")
+#['IntegratedGradients', 'InputXGradient','Saliency','GradientShap','Occlusion']
+__attr_methods__ = list(load_configs_from_file(os.path.join('configs', 'explain.yml'))['EXPLAIN'].keys())
+
 
 
 def golden_saliency(annotation, instance_id, dataset):
@@ -35,12 +43,26 @@ def scale_to_unit_interval(attr):
     _attr = MinMaxScaler().fit_transform([[a] for a in attr])
     return [a[0] for a in _attr]
 
+def activation_diff(model1, model2, batch):
+    act1 = get_layer_activations(model1, input_ids = batch.input, attention_mask = batch.generate_mask())
+    act2 = get_layer_activations(model2, input_ids = batch.input, attention_mask = batch.generate_mask())
+    keys = act1.keys()
+    assert  keys == act2.keys()
+    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in keys])
+    return diff
+
+def attribution_diff(attr1, attr2):
+    attr1 = scale_to_unit_interval(attr1)
+    attr2 = scale_to_unit_interval(attr2)
+    return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
+
 class AnnotationData:
-    def __init__(self, annotation_dir):
+    def __init__(self, annotation_dir, aggr = True):
         self.annotation_dir = annotation_dir
         self.load_annotations()
-        self.aggr_annotator = 'aggr'
-        self.append_aggregated_annotations()
+        if aggr:
+            self.aggr_annotator = 'aggr'
+            self.append_aggregated_annotations()
         self._annotations = self.annotations.copy()
         self.source = False
         self.current_annotators = False
@@ -96,14 +118,27 @@ class AnnotationData:
 class AttributionData:
     def __init__(self, attribution_file):
         self.df  = pd.read_pickle(attribution_file)
+        if 'token_types' not in self.df.columns:
+            self.df['token_types'] = False
+        self.attr_class = None
+        self.token_types = self.df['token_types'][0]
         self.run_id = self.df['run_id'].unique()[0]
-        self.model = self.df['model'].unique()[0]
+        self.model_name = self.df['model'].unique()[0]
         self.model_path = self.df['model_path'].unique()[0]
         self.source = self.df['source'].unique()[0]
         self.num_labels = self.df['num_labels'].unique()[0]
         self.origin = self.df['origin'].unique()[0]
         self.group = self.df['group'].unique()[0]
-        self.attr_methods = list(load_configs_from_file(os.path.join('configs','explain.yml'))['EXPLAIN'].keys())
+        self._df = self.df.copy()
+
+    def is_compatible(self, attr_data):
+        return self.model_path == attr_data.model_path and \
+                self.source == attr_data.source and \
+                self.num_labels == attr_data.num_labels and \
+                self.origin ==  attr_data.origin and \
+                self.token_types == attr_data.token_types
+
+    def get_dataloader(self):
         loader = dataloader(
             data_file = __TEST_DATA__,
             val_mode = True,
@@ -114,148 +149,87 @@ class AttributionData:
             train_percent = 100,
             batch_size = 1,
             drop_last = False,
-            num_workers = 0)
-        self.dataset = loader.dataset
+            num_workers = 8 if  torch.cuda.is_available() else 0)
+        return loader
 
-    def compute_human_agreement(self, annotation_data):
-        annotation_data.set_source(self.source)
-        df = self.df[self.df['pred'] == self.df['attr_class']].set_index('instance_id')
+    def get_dataset(self):
+        return self.get_dataloader().dataset
+
+    def set_attr_class(self, target):
+        if target == 'pred':
+            self.df = self._df[self._df['attr_class'] == self._df['pred']]
+        elif target in range(self.num_labels):
+            self.df = self._df[self._df['attr_class'] == target]
+        else:
+            self.df = self._df.copy()
+        self.attr_class = target
+
+    def load_model(self):
+        model, config = load_model_from_run(self.run_id)
+        return model, config
+
+def compute_human_agreement(attr_data, ann_data):
+    ann_data.set_source(attr_data.source)
+    if not attr_data.attr_class == 'pred':
+        attr_data.set_attr_class('pred')
+        df = attr_data.df.set_index('instance_id')
         ap_scores = []
-        for i, ann in tqdm(annotation_data.annotations.iterrows(), desc = 'Compute average precision scores'):
-            annotation = ann['annotation']
-            instance_id = ann['instance_id']
-            instance = self.dataset.get_instance(instance_id, word_structure = True)
-            golden = golden_saliency(annotation, instance_id, self.dataset)
-            if not golden:
-                df = df.drop(instance_id, axis=0)
-            else:
-                ap_instance = dict()
-                for attribution_method in self.attr_methods:
-                    for aggr, attr in df.loc[instance_id, attribution_method].items():
-                        attr = scale_to_unit_interval(attr)
-                        attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
-                        ap = average_precision_score(golden, attr)
-                        ap_instance.update({attribution_method + '_' + aggr : ap})
+    dataset = attr_data.get_dataset()
+    for i, ann in tqdm(ann_data.annotations.iterrows(), desc = f'Computing human agreement: {attr_data.run_id}'):
+        annotation = ann['annotation']
+        instance_id = ann['instance_id']
+        instance = dataset.get_instance(instance_id, word_structure = True)
+        golden = golden_saliency(annotation, instance_id, dataset)
+        ap_instance = defaultdict(float)
+        for attribution_method in __attr_methods__:
+            for aggr, attr in df.loc[instance_id, attribution_method].items():
+                attr = scale_to_unit_interval(attr)
+                attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
+                ap = average_precision_score(golden, attr)
+                ap_instance[attribution_method + '_' + aggr] = ap
                 ap_scores.append(ap_instance)
-        ha = pd.DataFrame.from_records(ap_scores)
-        ha = ha.mean(axis=0).to_dict()
-        return ha
+    ha = pd.DataFrame.from_records(ap_scores)
+    ha = ha.mean(axis=0).to_dict()
+    return ha
 
-def evaluate_human_agreement(annotations_dir, *attr_files):
-    annotation_data = AnnotationData(annotations_dir)
-    annotation_data.set_annotator('sebas')
-    ha_list = []
-    run_ids= []
-    for attribution_file in attr_files:
-        attribution_data = AttributionData(attribution_file)
-        annotation_data.set_source(attribution_data.source)
-        ha = attribution_data.compute_human_agreement(annotation_data)
-        ha_list.append(ha)
-        run_ids.append(attribution_data.run_id)
-
-    ha_df = pd.DataFrame.from_records(ha_list)
-    run_df = pd.DataFrame.from_dict({'run_id': run_ids})
-    df = pd.concat([run_df, ha_df], axis = 1)
-    return df
-
-
-    # MAP = np.mean(AP)
-    # return {'attribution_file_name': attribution_file_name,
-    #         'metric': MAP,
-    #         'run_id': attribution['run_id'],
-    #         'model': attribution['model'],
-    #         'source': attribution['source'],
-    #         'attribution_method' : attribution['attribution_method'],
-    #         'aggr': aggr}
-
-
-
-### Rationale Consistency
-###
-### get the activations of layers is based on
-### https://gist.github.com/Tushar-N/680633ec18f5cb4b47933da7d10902af
-### and
-### https://github.com/copenlu/xai-benchmark/blob/master/saliency_eval/consist_data.py
-
-# def is_layer(name):
-#     layer_pattern = re.compile('^[a-z]*\.encoder\.layer.[0-9]*$')
-#     return layer_pattern.search(name) or name == 'classifier'
-
-def save_activation(activations, name, mod, inp, out):
-    # for encoder layers seems we get ([ tensor() ], )
-    # while for classifier we get [tensor()]
-    # so we select the corresponding te
-    act = out
-    while not isinstance(act, torch.Tensor) and len(act) == 1:
-        act = act[0]
-    activations[name] = act
-
-def get_activations(model, **kwargs):
-    activations = defaultdict(torch.Tensor)
-    handles = []
-    for name, module in model.named_modules():
-        if is_layer(name):
-            handle = module.register_forward_hook(partial(save_activation, activations, name))
-            handles.append(handle)
-
-    with torch.no_grad():
-        model(**kwargs)
-
-    # is this needed?
-    for handle in handles:
-        handle.remove()
-    return activations
-
-
-def compute_diff_activation(model1, model2, batch):
-    activations1 = get_activations(model1, input_ids = batch.input, attention_mask = batch.generate_mask())
-    activations2 = get_activations(model2, input_ids = batch.input, attention_mask = batch.generate_mask())
-    keys = activations1.keys()
-    assert  keys == activations2.keys()
-    act_diff = np.mean([(activations1[key]- activations2[key]).abs().mean().cpu().item() for key in keys])
-    print(act_diff)
-    return act_diff
-
-def compute_diff_attribution(attr1, attr2):
-    return np.mean(np.abs(np.array(attr1) -np.array(attr2)))
-
-def compute_rationale_consistency(attribution_file1, attribution_file2, aggr, **kwargs):
-    A1 = read_attribution(ATTRIBUTION_DIR, attribution_file1, attr_is_pred=True)
-    A2 = read_attribution(ATTRIBUTION_DIR, attribution_file2, attr_is_pred=True)
-    assert A1['model'] == A2['model'] and A1['source'] == A2['source'] and A1['attribution_method'] == A2['attribution_method']
-    model1, config1 = get_model_from_run_id(A1['run_id'], **kwargs)
-    model2, config2 = get_model_from_run_id(A2['run_id'], **kwargs)
+def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
+    if not attr_data1.is_compatible(attr_data2):
+        raise Exception('Can only compute rationale consistency for compatible AttributionData.')
+    model1, config1 = attr_data1.load_model()
+    model2, config2 = attr_data2.load_model()
     model1.eval()
     model2.eval()
-    assert config1['num_labels'] == config2['num_labels']
-    config = config1
-    loader = dataloader(
-        val_mode = True,
-        data_file = DATA_FILE,
-        data_source = config['data_source'],
-        vocab_file = config['model_name'],
-        num_labels = config['num_labels'],
-        train_percent = 100,
-        batch_size = 1,
-        drop_last = False,
-        num_workers = 0)
-    attrs1 = A1['df']['attr_' + aggr]
-    attrs2 = A2['df']['attr_' + aggr]
-    len_data = len(loader)
-    assert len_data == len(attrs1) == len(attrs2)
-    diff_activation = np.empty(len_data)
-    diff_attribution = np.empty(len_data)
-    for i, batch in enumerate(loader):
-        attr1, attr2 = attrs1.iloc[i], attrs2.iloc[i]
-        diff_activation[i] = compute_diff_activation(model1, model2, batch)
-        diff_attribution[i] = compute_diff_attribution(attr1, attr2)
-    r = spearmanr(diff_activation, diff_attribution)
-    return {'attribution_file_name1': attribution_file1.name,
-            'attribution_file_name2': attribution_file2.name,
-            'run_id1': A1['run_id'],
-            'run_id2': A2['run_id'],
-            'metric': r,
-            'model': A1['model'],
-            'source': A1['source'],
-            'attribution_method' : A1['attribution_method'],
-            'aggr': aggr}
+    if cuda:
+        model1.cuda()
+        model2.cuda()
+    attr_data1.set_attr_class('pred')
+    attr_data2.set_attr_class('pred')
+    df1 = attr_data1.df.set_index('instance_id')
+    df2 = attr_data2.df.set_index('instance_id')
+    diffs = []
+    loader = attr_data1.get_dataloader()
+    with tqdm(total=len(loader.batch_sampler)) as pbar:
+        pbar.set_description(f'Computing rationale consitencys:  {attr_data1.run_id}, {attr_data2.run_id}')
+        for batch in loader:
+            diff_instance = defaultdict()
+            instance_id = batch.instance.item()
+            if cuda:
+                batch.cuda()
+            act_diff = activation_diff(model1, model2, batch)
+            # act_diff =  np.random.rand()
+            diff_instance['Activation'] = act_diff
+            for attribution_method in __attr_methods__:
+                for aggr, attr1 in df1.loc[instance_id, attribution_method].items():
+                    attr2 = df2.loc[instance_id, attribution_method][aggr]
+                    attr_diff = attribution_diff(attr1, attr2)
+                    # attr_diff =  np.random.rand()
+                    diff_instance[attribution_method + '_' + aggr] = attr_diff
+            diffs.append(diff_instance)
+            batch.cpu()
+            pbar.update(1)
+    model1.cpu()
+    model2.cpu()
+    df_diffs = pd.DataFrame.from_records(diffs)
+    r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
+    return r_scores
+

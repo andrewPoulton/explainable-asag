@@ -8,6 +8,7 @@ import shutil
 import torch
 from modelhandling import load_model_from_disk
 import contextlib
+from tempfile import mkdtemp
 
 __api__ = wandb.Api()
 __runs__ = __api__.runs("sebaseliens/explainable-asag")
@@ -30,7 +31,7 @@ def as_run_id(run):
 
 @contextlib.contextmanager
 def make_temp_dir():
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = mkdtemp()
     try:
         yield temp_dir
     finally:

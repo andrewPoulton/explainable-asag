@@ -23,38 +23,12 @@ from wandbinteraction import load_model_from_run, remove_run
 import warnings
 import gc
 from collections import defaultdict
-
+from copy import deepcopy
+from dataset import pad_tensor_batch
 #warnings.filterwarnings("error")
 #['IntegratedGradients', 'InputXGradient','Saliency','GradientShap','Occlusion']
 __attr_methods__ = list(load_configs_from_file(os.path.join('configs', 'explain.yml'))['EXPLAIN'].keys())
-
-
-
-def golden_saliency(annotation, instance_id, dataset):
-    student_answer_words = dataset.get_instance(instance_id)['student_answers'].split()
-    golden =  [1 if f'word_{k}' in annotation.split(',')
-               else 0 for k,w in enumerate(student_answer_words)]
-    return golden
-
-def ann_aggr_function(anns):
-    return ','.join([word_k for word_k, i in Counter(chain(anns)).items() if i > 1])
-
-def scale_to_unit_interval(attr):
-    _attr = MinMaxScaler().fit_transform([[a] for a in attr])
-    return [a[0] for a in _attr]
-
-def activation_diff(model1, model2, batch):
-    act1 = get_layer_activations(model1, input_ids = batch.input, attention_mask = batch.generate_mask())
-    act2 = get_layer_activations(model2, input_ids = batch.input, attention_mask = batch.generate_mask())
-    keys = act1.keys()
-    assert  keys == act2.keys()
-    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in keys])
-    return diff
-
-def attribution_diff(attr1, attr2):
-    attr1 = scale_to_unit_interval(attr1)
-    attr2 = scale_to_unit_interval(attr2)
-    return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
+__aggr__ = ['L2', 'L1', 'sum']
 
 class AnnotationData:
     def __init__(self, annotation_dir, aggr = True):
@@ -168,6 +142,23 @@ class AttributionData:
         model, config = load_model_from_run(self.run_id)
         return model, config
 
+
+
+
+def golden_saliency(annotation, instance_id, dataset):
+    student_answer_words = dataset.get_instance(instance_id)['student_answers'].split()
+    golden =  [1 if f'word_{k}' in annotation.split(',')
+               else 0 for k,w in enumerate(student_answer_words)]
+    return golden
+
+def ann_aggr_function(anns):
+    return ','.join([word_k for word_k, i in Counter(chain(anns)).items() if i > 1])
+
+def scale_to_unit_interval(attr):
+    _attr = MinMaxScaler().fit_transform([[a] for a in attr])
+    return [a[0] for a in _attr]
+
+
 def compute_human_agreement(attr_data, ann_data):
     ann_data.set_source(attr_data.source)
     if not attr_data.attr_class == 'pred':
@@ -192,6 +183,19 @@ def compute_human_agreement(attr_data, ann_data):
     ha = ha.mean(axis=0).to_dict()
     return ha
 
+
+def activation_diff_models(model1, model2, batch, token_types):
+    if token_types:
+        act1 = get_layer_activations(model1, input_ids = batch.input, token_type_ids = batch.token_type_ids, attention_mask = batch.generate_mask())
+        act2 = get_layer_activations(model2, input_ids = batch.input, token_type_ids = batch.token_type_ids, attention_mask = batch.generate_mask())
+    else:
+        act1 = get_layer_activations(model1, input_ids = batch.input, attention_mask = batch.generate_mask())
+        act2 = get_layer_activations(model2, input_ids = batch.input, attention_mask = batch.generate_mask())
+    keys = act1.keys()
+    assert  keys == act2.keys()
+    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in keys])
+    return diff
+
 def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
@@ -207,6 +211,7 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
     df1 = attr_data1.df.set_index('instance_id')
     df2 = attr_data2.df.set_index('instance_id')
     diffs = []
+    token_types = attr_data1.token_types
     loader = attr_data1.get_dataloader()
     with tqdm(total=len(loader.batch_sampler)) as pbar:
         pbar.set_description(f'Computing rationale consitencys:  {attr_data1.run_id}, {attr_data2.run_id}')
@@ -215,11 +220,12 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
             instance_id = batch.instance.item()
             if cuda:
                 batch.cuda()
-            act_diff = activation_diff(model1, model2, batch)
+            act_diff = activation_diff_models(model1, model2, batch, token_types)
             # act_diff =  np.random.rand()
             diff_instance['Activation'] = act_diff
             for attribution_method in __attr_methods__:
-                for aggr, attr1 in df1.loc[instance_id, attribution_method].items():
+                for aggr in __aggr__:
+                    attr1 = df1.loc[instance_id, attribution_method][aggr]
                     attr2 = df2.loc[instance_id, attribution_method][aggr]
                     attr_diff = attribution_diff(attr1, attr2)
                     # attr_diff =  np.random.rand()
@@ -233,3 +239,83 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
     r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
     return r_scores
 
+
+def activation_diff_batches(model, batch1, batch2, token_types):
+    if token_types:
+        act1 = get_layer_activations(model, input_ids = batch1.input, token_type_ids = batch1.token_type_ids, attention_mask = batch1.generate_mask())
+        act2 = get_layer_activations(model, input_ids = batch2.input, token_type_ids = batch2.token_type_ids, attention_mask = batch2.generate_mask())
+    else:
+        act1 = get_layer_activations(model, input_ids = batch1.input, attention_mask = batch1.generate_mask())
+        act2 = get_layer_activations(model, input_ids = batch2.input, attention_mask = batch2.generate_mask())
+    keys = act1.keys()
+    assert  keys == act2.keys()
+    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in keys])
+    return diff
+
+def attribution_diff(attr1, attr2):
+    attr1 = scale_to_unit_interval(attr1)
+    attr2 = scale_to_unit_interval(attr2)
+    return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
+# assumes attr are lists
+def pad_attributions(attr1, attr2, pad_value = 0.0):
+    if len(attr1) < len(attr2):
+        attr1 += [pad_value]*(len(attr2)-len(attr1))
+    if len(attr2) < len(attr1):
+        attr2 += [pad_value]*(len(attr1)-len(attr2))
+    return attr1, attr2
+
+def pad_batches(b1,b2):
+    super_input = pad_tensor_batch([b1.input.squeeze(),b2.input.squeeze()])
+    super_token_types = pad_tensor_batch([b1.token_type_ids.squeeze(),b2.token_type_ids.squeeze()])
+    b1.input, b2.input = torch.split(super_input,1)
+    b1.token_type_ids, b2.token_type_ids = torch.split(super_token_types,1)
+    return b1, b2
+
+def compute_dataset_consistency(attr_data, cuda = False):
+    token_types = attr_data.token_types
+    model, config = attr_data.load_model()
+    model.eval()
+    if cuda:
+        model.cuda()
+    attr_data.set_attr_class('pred')
+    df = attr_data.df.set_index('instance_id')
+    diffs = []
+    loader = attr_data.get_dataloader()
+    loader2 = deepcopy(loader)
+    num_data_pairs = int(len(loader.batch_sampler)*(len(loader.batch_sampler)-1)/2)
+    with tqdm(total = num_data_pairs)  as pbar:
+        pbar.set_description(f'Computing dataset consitency:  {attr_data.run_id}.')
+        for i,b1 in enumerate(loader):
+            if cuda:
+                b1.cuda()
+            instance_id1 = b1.instance.item()
+            for j, b2 in enumerate(loader2):
+                if j <= i:
+                    continue
+                instance_id2 = b2.instance.item()
+                diff_instance = defaultdict()
+                if cuda:
+                    b2.cuda()
+                b1, b2 = pad_batches(b1, b2)
+                act_diff = activation_diff_batches(model, b1, b2, token_types)
+                #act_diff = np.random.rand()
+                diff_instance['Activation'] = act_diff
+                for attribution_method in __attr_methods__:
+                    attributions1 = df.loc[instance_id1, attribution_method]
+                    attributions2 = df.loc[instance_id2, attribution_method]
+                    for aggr in __aggr__:
+                        attr1 = attributions1[aggr]
+                        attr2 = attributions2[aggr]
+                        attr1, attr2 = pad_attributions(attr1, attr2)
+                        attr_diff = attribution_diff(attr1, attr2)
+                        #attr_diff =  np.random.rand()
+                        diff_instance[attribution_method + '_' + aggr] = attr_diff
+                diffs.append(diff_instance)
+                b2.cpu()
+                pbar.update(1)
+            b1.cpu()
+    model.cpu()
+    df_diffs = pd.DataFrame.from_records(diffs)
+    print(df_diffs)
+    r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
+    return r_scores

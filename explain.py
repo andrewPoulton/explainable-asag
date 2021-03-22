@@ -18,32 +18,33 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
             print('Run already explained:', run.id)
             continue
         print('Explaining run:', run.id)
-        model, config = load_model_from_run(run, remove = True, check_exists = True)
+        model, cfg = load_model_from_run(run)
         loader = dataloader(
             data_file = __TEST_DATA__,
             val_mode = True,
-            data_source = config['data_source'],
+            data_source = run.config['data_source'],
             data_val_origin = origin,
-            vocab_file = config['model_name'],
-            num_labels = config['num_labels'],
+            vocab_file = run.config['model_name'],
+            num_labels = run.config['num_labels'],
             train_percent = 100,
             batch_size = 1,
             drop_last = False,
-            num_workers = config['num_workers'] if __CUDA__ else 0)
+            num_workers = run.config['num_workers'] if __CUDA__ else 0)
         token_types = config.get('token_types', False)
         attr_methods = load_configs_from_file(os.path.join('configs','explain.yml'))['EXPLAIN'].keys()
-        df = explain_model(loader, model, config,  attr_methods, origin, __CUDA__)
+        df = explain_model(loader, model, run.config,  attr_methods, origin, __CUDA__)
         df['run_id'] = run.id
-        df['model'] = config['name']
-        df['model_path'] = config['model_name']
-        df['source'] = config['data_source']
+        df['model'] = run.config['name']
+        df['model_path'] = run.config['model_name']
+        df['source'] = run.config['data_source']
         df['origin'] = origin
-        df['num_labels'] = config['num_labels']
-        df['group'] = config['group']
-        df['token_types'] = config['token_types']
-        if not os.path.isdir(os.path.join(__EXPLANATIONS_DIR__, config['group'])):
-            os.mkdir(os.path.join(__EXPLANATIONS_DIR__, config['group']))
-        df.to_pickle(os.path.join(__EXPLANATIONS_DIR__, config['group'], run.id + '.pkl'))
+        df['num_labels'] = run.config['num_labels']
+        df['group'] = run.config['group']
+        df['token_types'] = run.config['token_types']
+
+        if not os.path.isdir(os.path.join(__EXPLANATIONS_DIR__, run.config['group'])):
+            os.mkdir(os.path.join(__EXPLANATIONS_DIR__, run.config['group']))
+        df.to_pickle(os.path.join(__EXPLANATIONS_DIR__, run.config['group'], run.id + '.pkl'))
 
 
 if __name__=='__main__':

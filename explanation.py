@@ -9,6 +9,9 @@ from tqdm import tqdm
 import os
 import gc
 import pandas as pd
+import pickle
+from collections import defaultdict
+
 
 def get_embeds(model, inputs):
     return get_word_embeddings(model)(inputs)
@@ -62,8 +65,9 @@ def explain_batch(attribution_method, model, token_types, batch, target, **kwarg
             }
 
 
-def explain_model(loader, model, config,  attr_methods, origin, cuda):
-    token_types = config['token_types']
+def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
+    token_types = run_config.get('token_types', False)
+    num_labels = run_config['num_labels']
     model.eval()
     if cuda:
         model.cuda()
@@ -74,20 +78,23 @@ def explain_model(loader, model, config,  attr_methods, origin, cuda):
             if cuda:
                 batch.cuda()
             with torch.no_grad():
-                logits = compute_logits(model, batch, config.get('token_types', False)).squeeze()
-            for attr_class in range(config['num_labels']):
+                logits = compute_logits(model, batch, token_types).squeeze()
+            for attr_class in range(num_labels):
                 row = {'instance_id': batch.instance.cpu().item(),
                        'label': batch.labels.cpu().item(),
                        'pred': logits.argmax().cpu().item(),
                        'attr_class': attr_class,
                        'attr_class_pred_prob': torch.nn.functional.softmax(logits, dim = 0).cpu().numpy()[attr_class]}
-                for attribution_method in attr_methods:
-                    kwargs =  load_configs_from_file(os.path.join('configs','explain.yml'))["EXPLAIN"].get(attribution_method) or {}
+                attributions = defaultdict(list)
+                for attribution_method in attr_configs.keys():
+                    kwargs =  attr_configs.get(attribution_method) or {}
+                    kwargs = kwargs.copy()
                     if kwargs.get("baselines", False):
                         baseline = get_baseline(model, batch)
                         kwargs["baselines"] = baseline
                     attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
-                    row.update({attribution_method: attr})
+                    attributions[attribution_method] = attr
+                row.update(attributions)
                 explain_run.append(row)
             batch.cpu()
             gc.collect()
@@ -99,3 +106,4 @@ def explain_model(loader, model, config,  attr_methods, origin, cuda):
         torch.cuda.empty_cache()
         df = pd.DataFrame.from_records(explain_run)
     return df
+

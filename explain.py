@@ -14,11 +14,18 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
     if not os.path.isdir(__EXPLANATIONS_DIR__):
         os.mkdir(__EXPLANATIONS_DIR__)
     for run in get_runs(*wandb_groups):
+        attr_directory = os.path.join(__EXPLANATIONS_DIR__, run.config['group'])
+        if not os.path.isdir(attr_directory):
+            os.mkdir(attr_directory)
+        path_to_attribution_file = os.path.join(attr_directory, run.id + '.pkl')
         if os.path.isfile(os.path.join(__EXPLANATIONS_DIR__, run.config['group'], run.id + '.pkl')):
             print('Run already explained:', run.id)
             continue
         print('Explaining run:', run.id)
-        model, cfg = load_model_from_run(run)
+        try:
+            model, cfg = load_model_from_run(run)
+        except:
+            continue
         loader = dataloader(
             data_file = __TEST_DATA__,
             val_mode = True,
@@ -30,9 +37,14 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
             batch_size = 1,
             drop_last = False,
             num_workers = run.config['num_workers'] if __CUDA__ else 0)
-        token_types = config.get('token_types', False)
-        attr_methods = load_configs_from_file(os.path.join('configs','explain.yml'))['EXPLAIN'].keys()
-        df = explain_model(loader, model, run.config,  attr_methods, origin, __CUDA__)
+        if not 'token_types' in  run.config:
+            run.config.update({'token_types': False})
+        attr_configs = load_configs_from_file(os.path.join('configs','explain.yml'))['EXPLAIN']
+        if 'large' in run.config['model_name']:
+            for attribution_method in attr_configs.keys():
+                if attr_configs[attribution_method] and 'internal_batch_size' in attr_configs[attribution_method]:
+                    attr_configs[attribution_method]['internal_batch_size'] = attr_configs[attribution_method]['internal_batch_size']//2
+        df = explain_model(loader, model, run.config,  attr_configs, origin, __CUDA__)
         df['run_id'] = run.id
         df['model'] = run.config['name']
         df['model_path'] = run.config['model_name']
@@ -41,11 +53,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
         df['num_labels'] = run.config['num_labels']
         df['group'] = run.config['group']
         df['token_types'] = run.config['token_types']
-
-        if not os.path.isdir(os.path.join(__EXPLANATIONS_DIR__, run.config['group'])):
-            os.mkdir(os.path.join(__EXPLANATIONS_DIR__, run.config['group']))
-        df.to_pickle(os.path.join(__EXPLANATIONS_DIR__, run.config['group'], run.id + '.pkl'))
-
+        df.to_pickle(path_to_attribution_file)
 
 if __name__=='__main__':
     fire.Fire(explain)

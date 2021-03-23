@@ -2,7 +2,7 @@ EXPLAIN:
   IntegratedGradients :
     n_steps : 200
     baselines : True
-    internal_batch_size: 10
+    internal_batch_size: 20
 
   InputXGradient : 
 

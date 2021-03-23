@@ -225,7 +225,11 @@ class PairSampler(Sampler[List[int]]):
             yield list(pair)
 
     def __len__(self):
-        return len(self.sampler)*(len(self.sampler)-1)//2
+        if 'within' in self.kwargs or 'between' in self.kwargs:
+            # This is pretty dumb, but easiest for now
+            return len(list(self.__iter__()))
+        else:
+            return len(self.sampler)*(len(self.sampler)-1)//2
 
 def dataloader(data_file = None,
         data_source = None,

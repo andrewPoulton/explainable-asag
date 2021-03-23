@@ -11,7 +11,7 @@ import gc
 import pandas as pd
 import pickle
 from collections import defaultdict
-
+import json
 
 def get_embeds(model, inputs):
     return get_word_embeddings(model)(inputs)
@@ -92,8 +92,14 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
                     if kwargs.get("baselines", False):
                         baseline = get_baseline(model, batch)
                         kwargs["baselines"] = baseline
-                    attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
-                    attributions[attribution_method] = attr
+                    try:
+                        attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
+                        attributions[attribution_method] = attr
+                    except RuntimeError as e:
+                        crashinfo = {'row': row, 'run_config': run_config, 'attr_configs': attr_configs}
+                        with open('~explain_crash.json', 'w') as crashfile:
+                            json.dump(crashinfo, indent=4)
+                        raise e
                 row.update(attributions)
                 explain_run.append(row)
             batch.cpu()
@@ -106,4 +112,3 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
         torch.cuda.empty_cache()
         df = pd.DataFrame.from_records(explain_run)
     return df
-

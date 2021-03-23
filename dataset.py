@@ -15,6 +15,10 @@ import torch
 import re
 import configuration
 import os
+import itertools
+
+
+from torch.utils.data.sampler import Sampler
 
 __TRAIN_DATA__ = os.path.join('data', 'flat_semeval5way_train.csv')
 __TEST_DATA__ = os.path.join('data', 'flat_semeval5way_test.csv')
@@ -178,6 +182,27 @@ class SemEvalDataset(Dataset):
 
 
 
+class PairSampler(Sampler[List[int]]):
+    r"""Wraps another sampler to yield mini-batches of all pairs of indices.
+
+    Args:
+        sampler (Sampler or Iterable): Base sampler. Can be any iterable object
+
+    Example:
+        >>> list(PairSampler(SequentialSampler(range(3))))
+        [[0, 1],[0,2],[1,2]]
+    """
+
+    def __init__(self, sampler: Sampler[int]) -> None:
+        self.sampler = sampler
+    def __iter__(self):
+        pairs = itertools.product(self.sampler,self.sampler)
+        for pair in pairs:
+            yield list(pair)
+
+    def __len__(self):
+        return len(self.sampler)*(len(self.sampler)-1)//2
+
 def dataloader(data_file = None,
         data_source = None,
         vocab_file =  None,
@@ -187,16 +212,40 @@ def dataloader(data_file = None,
         drop_last = False,
         num_workers = 0,
         data_val_origin = 'unseen_answers',
-        val_mode = False):
+        val_mode = False
+        ):
 
     if val_mode and 'test' not in data_file:
         data_file = data_file.replace('train', 'test')
     data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
     data.set_data_source(data_source)
-    print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
     if val_mode:
         data.to_val_mode(data_source, 'answer')
+    print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
     sampler = SequentialSampler(data) if val_mode else RandomSampler(data)
-    batch_sampler = BatchSampler(sampler, batch_size = batch_size, drop_last=drop_last)
+    batch_sampler =BatchSampler(sampler, batch_size = batch_size, drop_last=drop_last)
     loader = DataLoader(data, batch_sampler=batch_sampler, collate_fn=data.collater, num_workers = num_workers)
+    return loader
+
+
+def pairdataloader(
+        data_file = os.path.join('data', 'flat_semeval5way_test.csv'),
+        data_source = 'scientsbank',
+        vocab_file =  'bert-base-uncased',
+        num_labels = 2,
+        train_percent = 100,
+        num_workers = 0,
+        data_val_origin = 'unseen_answers',
+        val_mode = True
+        ):
+    if val_mode and 'test' not in data_file:
+        data_file = data_file.replace('train', 'test')
+    data = SemEvalDataset(data_file = data_file, vocab_file = vocab_file, train_percent = train_percent)
+    data.set_data_source(data_source)
+    if val_mode:
+        data.to_val_mode(data_source, 'answer')
+    print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
+    sampler = SequentialSampler(data)
+    pair_sampler = PairSampler(sampler)
+    loader = DataLoader(data, batch_sampler=pair_sampler, collate_fn=data.collater, num_workers = num_workers)
     return loader

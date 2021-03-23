@@ -74,7 +74,7 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
     with tqdm(total=len(loader.batch_sampler)) as pbar:
         pbar.set_description('Compute attributions')
         explain_run = []
-        for batch in loader:
+        for i,batch in enumerate(loader):
             if cuda:
                 batch.cuda()
             with torch.no_grad():
@@ -96,7 +96,7 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
                         attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
                         attributions[attribution_method] = attr
                     except RuntimeError as e:
-                        crashinfo = {'row': row, 'run_config': run_config, 'attr_configs': attr_configs}
+                        crashinfo = {'batch': i, 'row': row, 'run_config': run_config, 'attr_configs': attr_configs, 'explain_run': explain_run, 'origin': origin}
                         with open('~explain_crash.json', 'w') as crashfile:
                             json.dump(crashinfo, indent=4)
                         raise e

@@ -98,7 +98,9 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
                     except RuntimeError as e:
                         crashinfo = {'batch': i, 'row': row, 'run_config': run_config, 'attr_configs': attr_configs, 'explain_run': explain_run, 'origin': origin}
                         with open('~explain_crash.json', 'w') as crashfile:
-                            json.dump(crashinfo, indent=4)
+                            json.dump(crashinfo, crashfile)
+                        with open('~explain_crash.backup', 'w') as backupfile:
+                            pickle.dump(explain_run, backupfile)
                         raise e
                 row.update(attributions)
                 explain_run.append(row)

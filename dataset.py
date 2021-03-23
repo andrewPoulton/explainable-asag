@@ -193,10 +193,34 @@ class PairSampler(Sampler[List[int]]):
         [[0, 1],[0,2],[1,2]]
     """
 
-    def __init__(self, sampler: Sampler[int]) -> None:
+    def __init__(self, sampler: Sampler[int], **kwargs) -> None:
         self.sampler = sampler
+        self.kwargs = kwargs
+
     def __iter__(self):
-        pairs = itertools.product(self.sampler,self.sampler)
+        if 'within' in self.kwargs or 'between' in self.kwargs:
+            sampler_list = list(self.sampler)
+            if 'within' in self.kwargs:
+                labels = self.kwargs['within']
+                assert len(labels) == len(self.sampler), 'Labels of groups to sample within need to have length of sampler'
+                groups = [[i for k,i in enumerate(sampler_list) if labels[k]==label] for label in list(set(labels))]
+                group_iters = [itertools.combinations(group,2) for group in groups]
+                within_pairs =  itertools.chain(*group_iters)
+            else:
+                within_pairs = iter([])
+
+            if 'between' in self.kwargs:
+                labels = self.kwargs['between']
+                assert len(labels) == len(self.sampler), 'Labels of groups to sample between need to have length of sampler'
+                groups = [[i for k,i in enumerate(sampler_list) if labels[k]==label] for label in list(set(labels))]
+                group_sampler = iter(choice(g) for g in groups)
+                between_pairs = itertools.combinations(group_sampler,2)
+            else:
+                between_pairs = iter([])
+            pairs = itertools.chain(within_pairs, between_pairs)
+        else:
+            pairs = itertools.combinations(self.sampler,2)
+
         for pair in pairs:
             yield list(pair)
 
@@ -234,9 +258,11 @@ def pairdataloader(
         vocab_file =  'bert-base-uncased',
         num_labels = 2,
         train_percent = 100,
-        num_workers = 0,
+        num_workers = 8 if torch.cuda.is_available() else 0,
         data_val_origin = 'unseen_answers',
-        val_mode = True
+        val_mode = True,
+        within_questions = False,
+        between_questions = False,
         ):
     if val_mode and 'test' not in data_file:
         data_file = data_file.replace('train', 'test')
@@ -246,6 +272,11 @@ def pairdataloader(
         data.to_val_mode(data_source, 'answer')
     print(f"Data loaded from {data_file} with {data.data.shape[0]} lines.")
     sampler = SequentialSampler(data)
-    pair_sampler = PairSampler(sampler)
+    kwargs = {}
+    if within_questions:
+        kwargs.update({'within': data.data['problem_index'].tolist()})
+    if between_questions:
+        kwargs.update({'between': data.data['problem_index'].tolist()})
+    pair_sampler = PairSampler(sampler, **kwargs)
     loader = DataLoader(data, batch_sampler=pair_sampler, collate_fn=data.collater, num_workers = num_workers)
     return loader

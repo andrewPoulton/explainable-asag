@@ -42,7 +42,7 @@ def evaluateRC(attribution_dir, group1, group2):
     #     pairs[run.config['name']].append(run.config['model_name'])
     # print(*pairs.values())
     df =  evaluate_rationale_consistency(*pairs.values())
-    df.to_csv(os.path.join(__RESULTS_DIR__, attribution_dir, group1 + group + '_RC.csv'))
+    df.to_csv(os.path.join(__RESULTS_DIR__, attribution_dir, group1 + group2 + '_RC.csv'))
 
 if __name__ == '__main__':
     fire.Fire(evaluateRC)

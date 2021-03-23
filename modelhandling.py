@@ -43,6 +43,15 @@ def get_word_embeddings(module):
         if embeds:
             return embeds
 
+def get_sub_module(module, submodule_name):
+    for attr_str in dir(module):
+        if attr_str == submodule_name:
+            return  getattr(module, attr_str)
+
+    for n, ch in module.named_children():
+        submodule = get_sub_module(ch, submodule_name)
+        if submodule:
+            return submodule
 
 ### get the activations of layers is based on
 ### https://gist.github.com/Tushar-N/680633ec18f5cb4b47933da7d10902af

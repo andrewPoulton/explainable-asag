@@ -10,16 +10,7 @@ import dataset
 from tqdm import tqdm
 from torch.utils.data import SequentialSampler, RandomSampler, BatchSampler, DataLoader
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score#    import wandb
-
-def get_sub_module(module, submodule_name):
-    for attr_str in dir(module):
-        if attr_str == submodule_name:
-            return  getattr(module, attr_str)
-
-    for n, ch in module.named_children():
-        submodule = get_sub_module(ch, submodule_name)
-        if submodule:
-            return submodule
+from modelhandling import get_sub_module
 
 def grad_norm(model):
     return sum(p.grad.pow(2).sum() if p.grad is not None else torch.tensor(0.) for p in model.parameters())**.5

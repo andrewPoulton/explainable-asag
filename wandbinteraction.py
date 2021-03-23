@@ -46,8 +46,6 @@ def load_model_from_wandb(run):
                 print('Downloading model from WandB:', os.path.join(run.id, f.name))
                 f.download(temp_dir, replace = True)
                 path_to_model = os.path.join(temp_dir, f.name)
-                break
-        files.close()
         model, config = load_model_from_disk(path_to_model)
     return model, config
 
@@ -65,7 +63,7 @@ def download_run(run,  ext = None):
                 print('Download failed:', os.path.join(run.id, f.name))
                 print(f'Removing dir {os.path.join(run.id,"")}')
                 shutil.rmtree(run.id)
-                files.close()
+
 
 def delete_run(run):
     run = get_run_id(run)

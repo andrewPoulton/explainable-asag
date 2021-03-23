@@ -143,8 +143,6 @@ class AttributionData:
         return model, config
 
 
-
-
 def golden_saliency(annotation, instance_id, dataset):
     student_answer_words = dataset.get_instance(instance_id)['student_answers'].split()
     golden =  [1 if f'word_{k}' in annotation.split(',')
@@ -183,7 +181,6 @@ def compute_human_agreement(attr_data, ann_data):
     ha = ha.mean(axis=0).to_dict()
     return ha
 
-
 def activation_diff_models(model1, model2, batch, token_types):
     if token_types:
         act1 = get_layer_activations(model1, input_ids = batch.input, token_type_ids = batch.token_type_ids, attention_mask = batch.generate_mask())
@@ -191,10 +188,40 @@ def activation_diff_models(model1, model2, batch, token_types):
     else:
         act1 = get_layer_activations(model1, input_ids = batch.input, attention_mask = batch.generate_mask())
         act2 = get_layer_activations(model2, input_ids = batch.input, attention_mask = batch.generate_mask())
-    keys = act1.keys()
-    assert  keys == act2.keys()
-    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in keys])
+    assert act1.keys() == act2.keys()
+    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in act1.keys()])
     return diff
+
+def activation_diff_batches(model, batch1, batch2, token_types):
+    if token_types:
+        act1 = get_layer_activations(model, input_ids = batch1.input, token_type_ids = batch1.token_type_ids, attention_mask = batch1.generate_mask())
+        act2 = get_layer_activations(model, input_ids = batch2.input, token_type_ids = batch2.token_type_ids, attention_mask = batch2.generate_mask())
+    else:
+        act1 = get_layer_activations(model, input_ids = batch1.input, attention_mask = batch1.generate_mask())
+        act2 = get_layer_activations(model, input_ids = batch2.input, attention_mask = batch2.generate_mask())
+    assert  act1.keys() == act2.keys()
+    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in act1.keys()])
+    return diff
+
+def attribution_diff(attr1, attr2):
+    attr1 = scale_to_unit_interval(attr1)
+    attr2 = scale_to_unit_interval(attr2)
+    return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
+# assumes attr are lists
+def pad_attributions(attr1, attr2, pad_value = 0.0):
+    if len(attr1) < len(attr2):
+        attr1 += [pad_value]*(len(attr2)-len(attr1))
+    if len(attr2) < len(attr1):
+        attr2 += [pad_value]*(len(attr1)-len(attr2))
+    return attr1, attr2
+
+def pad_batches(b1,b2):
+    super_input = pad_tensor_batch([b1.input.squeeze(),b2.input.squeeze()])
+    super_token_types = pad_tensor_batch([b1.token_type_ids.squeeze(),b2.token_type_ids.squeeze()])
+    b1.input, b2.input = torch.split(super_input,1)
+    b1.token_type_ids, b2.token_type_ids = torch.split(super_token_types,1)
+    return b1, b2
+
 
 def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
     if not attr_data1.is_compatible(attr_data2):
@@ -239,37 +266,6 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
     r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
     return r_scores
 
-
-def activation_diff_batches(model, batch1, batch2, token_types):
-    if token_types:
-        act1 = get_layer_activations(model, input_ids = batch1.input, token_type_ids = batch1.token_type_ids, attention_mask = batch1.generate_mask())
-        act2 = get_layer_activations(model, input_ids = batch2.input, token_type_ids = batch2.token_type_ids, attention_mask = batch2.generate_mask())
-    else:
-        act1 = get_layer_activations(model, input_ids = batch1.input, attention_mask = batch1.generate_mask())
-        act2 = get_layer_activations(model, input_ids = batch2.input, attention_mask = batch2.generate_mask())
-    keys = act1.keys()
-    assert  keys == act2.keys()
-    diff = np.mean([(act1[key] - act2[key]).abs().mean().cpu().item() for key in keys])
-    return diff
-
-def attribution_diff(attr1, attr2):
-    attr1 = scale_to_unit_interval(attr1)
-    attr2 = scale_to_unit_interval(attr2)
-    return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
-# assumes attr are lists
-def pad_attributions(attr1, attr2, pad_value = 0.0):
-    if len(attr1) < len(attr2):
-        attr1 += [pad_value]*(len(attr2)-len(attr1))
-    if len(attr2) < len(attr1):
-        attr2 += [pad_value]*(len(attr1)-len(attr2))
-    return attr1, attr2
-
-def pad_batches(b1,b2):
-    super_input = pad_tensor_batch([b1.input.squeeze(),b2.input.squeeze()])
-    super_token_types = pad_tensor_batch([b1.token_type_ids.squeeze(),b2.token_type_ids.squeeze()])
-    b1.input, b2.input = torch.split(super_input,1)
-    b1.token_type_ids, b2.token_type_ids = torch.split(super_token_types,1)
-    return b1, b2
 
 def compute_dataset_consistency(attr_data, cuda = False):
     token_types = attr_data.token_types

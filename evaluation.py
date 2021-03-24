@@ -168,11 +168,9 @@ def ann_aggr_function(anns):
     return ','.join([word_k for word_k, i in Counter(chain(anns)).items() if i > 1])
 
 def scale_to_unit_interval(attr, aggr):
-    if aggr in ['L1', 'L2']:
-        scaler = MinMaxScaler()
-    if aggr = 'sum':
-        scaler = MinMaxScaler(-1,1)
-    _attr = MinMaxScaler().fit_transform([[a] for a in attr])
+    _attr = MinMaxScaler().fit_transform([[np.abs(a)] for a in attr])
+    if aggr == 'sum':
+        _attr =  [np.sign(a)*b for a, b in zip(attr, _attr)]
     return [a[0] for a in _attr]
 
 def activation_diff_models(model1, model2, batch, token_types):
@@ -229,7 +227,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         for attribution_method in __attr_methods__:
             for aggr, attr in df.loc[instance_id, attribution_method].items():
                 attr = scale_to_unit_interval(attr, aggr)
-                if aggr = 'sum':
+                if aggr == 'sum':
                     attr = [abs(a) for a in aggr]
                 attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
                 ap = average_precision_score(golden, attr)

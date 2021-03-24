@@ -92,16 +92,9 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
                     if kwargs.get("baselines", False):
                         baseline = get_baseline(model, batch)
                         kwargs["baselines"] = baseline
-                    try:
-                        attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
-                        attributions[attribution_method] = attr
-                    except RuntimeError as e:
-                        crashinfo = {'batch': i, 'row': row, 'run_config': run_config, 'attr_configs': attr_configs, 'explain_run': explain_run, 'origin': origin}
-                        with open('~explain_crash.json', 'w') as crashfile:
-                            json.dump(crashinfo, crashfile)
-                        with open('~explain_crash.backup', 'w') as backupfile:
-                            pickle.dump(explain_run, backupfile)
-                        raise e
+
+                    attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
+                    attributions[attribution_method] = attr
                 row.update(attributions)
                 explain_run.append(row)
             batch.cpu()

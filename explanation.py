@@ -92,14 +92,11 @@ def explain_model(loader, model, run_config,  attr_configs, origin, cuda):
                     if kwargs.get("baselines", False):
                         baseline = get_baseline(model, batch)
                         kwargs["baselines"] = baseline
-
                     attr = explain_batch(attribution_method, model, token_types, batch, target = attr_class, **kwargs)
                     attributions[attribution_method] = attr
                 row.update(attributions)
                 explain_run.append(row)
             batch.cpu()
-            gc.collect()
-            torch.cuda.empty_cache()
             pbar.update(1)
 
         model.cpu()

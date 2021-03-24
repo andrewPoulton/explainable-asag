@@ -9,7 +9,7 @@ from wandbinteraction import get_runs, load_model_from_run
 
 __CUDA__ = torch.cuda.is_available()
 __EXPLANATIONS_DIR__ = 'explained'
- __num_workers__ = 2
+__num_workers__ = 4
 
 def explain(*wandb_groups, origin = 'unseen_answers'):
     if not os.path.isdir(__EXPLANATIONS_DIR__):

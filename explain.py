@@ -9,6 +9,7 @@ from wandbinteraction import get_runs, load_model_from_run
 
 __CUDA__ = torch.cuda.is_available()
 __EXPLANATIONS_DIR__ = 'explained'
+ __num_workers__ = 2
 
 def explain(*wandb_groups, origin = 'unseen_answers'):
     if not os.path.isdir(__EXPLANATIONS_DIR__):
@@ -36,7 +37,7 @@ def explain(*wandb_groups, origin = 'unseen_answers'):
             train_percent = 100,
             batch_size = 1,
             drop_last = False,
-            num_workers = run.config['num_workers'] if __CUDA__ else 0)
+            num_workers = __num_workers__ if __CUDA__ else 0)
         if not 'token_types' in  run.config:
             run.config.update({'token_types': False})
         attr_configs = load_configs_from_file(os.path.join('configs','explain.yml'))['EXPLAIN']

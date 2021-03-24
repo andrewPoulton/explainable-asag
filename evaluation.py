@@ -228,7 +228,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         ap_instance = defaultdict(float)
         for attribution_method in __attr_methods__:
             for aggr, attr in df.loc[instance_id, attribution_method].items():
-                attr = scale_to_unit_interval(attr)
+                attr = scale_to_unit_interval(attr, aggr)
                 if aggr = 'sum':
                     attr = [abs(a) for a in aggr]
                 attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]

@@ -167,7 +167,11 @@ def golden_saliency(annotation, instance_id, dataset):
 def ann_aggr_function(anns):
     return ','.join([word_k for word_k, i in Counter(chain(anns)).items() if i > 1])
 
-def scale_to_unit_interval(attr):
+def scale_to_unit_interval(attr, aggr):
+    if aggr in ['L1', 'L2']:
+        scaler = MinMaxScaler()
+    if aggr = 'sum':
+        scaler = MinMaxScaler(-1,1)
     _attr = MinMaxScaler().fit_transform([[a] for a in attr])
     return [a[0] for a in _attr]
 
@@ -197,8 +201,6 @@ def activation_diff_batches(model, pair, token_types):
     return diff
 
 def attribution_diff(attr1, attr2):
-    attr1 = scale_to_unit_interval(attr1)
-    attr2 = scale_to_unit_interval(attr2)
     return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
 
 # assumes attr are lists
@@ -227,6 +229,8 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         for attribution_method in __attr_methods__:
             for aggr, attr in df.loc[instance_id, attribution_method].items():
                 attr = scale_to_unit_interval(attr)
+                if aggr = 'sum':
+                    attr = [abs(a) for a in aggr]
                 attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
                 ap = average_precision_score(golden, attr)
                 ap_instance[attribution_method + '_' + aggr] = ap
@@ -273,6 +277,8 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                 for aggr in __aggr__:
                     attr1 = df1.loc[instance_id, attribution_method][aggr]
                     attr2 = df2.loc[instance_id, attribution_method][aggr]
+                    attr1 = scale_to_unit_interval(attr1, aggr)
+                    attr2 = scale_to_unit_interval(attr2, aggr)
                     attr_diff = attribution_diff(attr1, attr2)
                     # attr_diff =  np.random.rand()
                     diff_instance[attribution_method + '_' + aggr] = attr_diff
@@ -316,6 +322,8 @@ def compute_dataset_consistency(attr_data, cuda = False, return_df = False, **kw
                     attr1 = attributions1[aggr]
                     attr2 = attributions2[aggr]
                     attr1, attr2 = pad_attributions(attr1, attr2)
+                    attr1 = scale_to_unit_interval(attr1, aggr)
+                    attr2 = scale_to_unit_interval(attr2, aggr)
                     attr_diff = attribution_diff(attr1, attr2)
                     #attr_diff =  np.random.rand()
                     diff_instance[attribution_method + '_' + aggr] = attr_diff

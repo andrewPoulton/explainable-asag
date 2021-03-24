@@ -31,7 +31,7 @@ def evaluateHA(annotation_dir, attributions_dir):
     attr_files = [os.path.join(attributions_dir, f) for f in os.listdir(attributions_dir) if f.endswith('.pkl')]
     path_pieces =  os.path.normpath(attributions_dir).split(os.sep)
     filename = path_pieces[-1] + '_HA.csv'
-    directory = os.path.join(__RESULTS_DIR__, path_pieces[-2])
+    directory = __RESULTS_DIR__
     if not os.path.isdir(directory):
         os.mkdir(directory)
     df = evaluate_human_agreement(annotation_dir, *attr_files)

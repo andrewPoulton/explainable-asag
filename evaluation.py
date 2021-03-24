@@ -27,7 +27,7 @@ from copy import deepcopy
 from dataset import pad_tensor_batch
 #warnings.filterwarnings("error")
 #['IntegratedGradients', 'InputXGradient','Saliency','GradientShap','Occlusion']
-__RESULTS_DIR__ = 'results'
+__RESULTS_DIR__ = os.path.join('results','attributions')
 __attr_methods__ = list(load_configs_from_file(os.path.join('configs', 'explain.yml'))['EXPLAIN'].keys())
 __aggr__ = ['L2', 'L1', 'sum']
 
@@ -171,31 +171,6 @@ def scale_to_unit_interval(attr):
     _attr = MinMaxScaler().fit_transform([[a] for a in attr])
     return [a[0] for a in _attr]
 
-
-def compute_human_agreement(attr_data, ann_data):
-    ann_data.set_source(attr_data.source)
-    if not attr_data.attr_class == 'pred':
-        attr_data.set_attr_class('pred')
-        df = attr_data.df.set_index('instance_id')
-        ap_scores = []
-    dataset = attr_data.get_dataset()
-    for i, ann in tqdm(ann_data.annotations.iterrows(), desc = f'Computing human agreement: {attr_data.run_id}'):
-        annotation = ann['annotation']
-        instance_id = ann['instance_id']
-        instance = dataset.get_instance(instance_id, word_structure = True)
-        golden = golden_saliency(annotation, instance_id, dataset)
-        ap_instance = defaultdict(float)
-        for attribution_method in __attr_methods__:
-            for aggr, attr in df.loc[instance_id, attribution_method].items():
-                attr = scale_to_unit_interval(attr)
-                attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
-                ap = average_precision_score(golden, attr)
-                ap_instance[attribution_method + '_' + aggr] = ap
-                ap_scores.append(ap_instance)
-    ha = pd.DataFrame.from_records(ap_scores)
-    ha = ha.mean(axis=0).to_dict()
-    return ha
-
 def activation_diff_models(model1, model2, batch, token_types):
     if token_types:
         act1 = get_layer_activations(model1, input_ids = batch.input, token_type_ids = batch.token_type_ids, attention_mask = batch.generate_mask())
@@ -211,9 +186,9 @@ def activation_diff_batches(model, pair, token_types):
     input_ids1,input_ids2 = torch.split(pair.input,1)
     attention_mask1, attention_mask2 = torch.split(pair.generate_mask(), 1)
     if token_types:
-        token_types1,token_types2 = torch.split(pair.token_type_ids,1)
+        token_type_ids1,token_type_ids2 = torch.split(pair.token_type_ids,1)
         act1 = get_layer_activations(model, input_ids = input_ids1, token_type_ids = token_type_ids1, attention_mask = attention_mask1)
-        act2 = get_layer_activations(model, input_ids = input_ids2, token_type_ids = batch2.token_type_ids, attention_mask = attention_mask2)
+        act2 = get_layer_activations(model, input_ids = input_ids2, token_type_ids = token_type_ids2, attention_mask = attention_mask2)
     else:
         act1 = get_layer_activations(model,  input_ids = input_ids1, attention_mask = attention_mask1)
         act2 = get_layer_activations(model,  input_ids = input_ids2, attention_mask = attention_mask2)
@@ -234,7 +209,36 @@ def pad_attributions(attr1, attr2):
         attr2 += [0.0]*(len(attr1)-len(attr2))
     return attr1, attr2
 
-def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
+
+
+def compute_human_agreement(attr_data, ann_data, return_df = False):
+    ann_data.set_source(attr_data.source)
+    if not attr_data.attr_class == 'pred':
+        attr_data.set_attr_class('pred')
+        df = attr_data.df.set_index('instance_id')
+        ap_scores = []
+    dataset = attr_data.get_dataset()
+    for i, ann in tqdm(ann_data.annotations.iterrows(), desc = f'Computing human agreement: {attr_data.run_id}'):
+        annotation = ann['annotation']
+        instance_id = ann['instance_id']
+        instance = dataset.get_instance(instance_id, word_structure = True)
+        golden = golden_saliency(annotation, instance_id, dataset)
+        ap_instance = defaultdict(float)
+        for attribution_method in __attr_methods__:
+            for aggr, attr in df.loc[instance_id, attribution_method].items():
+                attr = scale_to_unit_interval(attr)
+                attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
+                ap = average_precision_score(golden, attr)
+                ap_instance[attribution_method + '_' + aggr] = ap
+                ap_scores.append(ap_instance)
+    ap_df = pd.DataFrame.from_records(ap_scores)
+    ha = ap_df.mean(axis=0).to_dict()
+    if return_df:
+        return ha, ap_df
+    return ha
+
+
+def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = False):
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
     attr_aggr_list = [attribution_method + '_' + aggr for attribution_method in __attr_methods__ for aggr in __aggr__]
@@ -279,10 +283,13 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False):
     model2.cpu()
     df_diffs = pd.DataFrame.from_records(diffs)
     r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
-    return r_scores
+    if return_df:
+        return r_scores, df_diffs
+    else:
+        return r_scores
 
 
-def compute_dataset_consistency(attr_data, cuda = False, **kwargs):
+def compute_dataset_consistency(attr_data, cuda = False, return_df = False, **kwargs):
     token_types = attr_data.token_types
     model, config = attr_data.load_model()
     model.eval()
@@ -318,4 +325,7 @@ def compute_dataset_consistency(attr_data, cuda = False, **kwargs):
     model.cpu()
     df_diffs = pd.DataFrame.from_records(diffs)
     r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
-    return r_scores
+    if return_df:
+        r_scores, df_diffs
+    else:
+        return r_scores

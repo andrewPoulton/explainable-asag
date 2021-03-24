@@ -35,7 +35,7 @@ def evaluateRC(attribution_dir, group1, group2):
     for run in runs2:
         run_pairs[run.config['name']].append(run)
     get_attr_file = lambda group, run: os.path.join(attribution_dir, group, run.id +'.pkl')
-    attr_file_pairs = [[get_attr_file(group1, run1), get_attr_file(group2,run2) for name, run1, run2 in run_pairs.items()]
+    attr_file_pairs = [[get_attr_file(group1, run1), get_attr_file(group2,run2)] for name, run1, run2 in run_pairs.items()]
 
     filename = group1 + group2 + '_RC.csv'
 

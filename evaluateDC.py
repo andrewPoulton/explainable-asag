@@ -24,7 +24,7 @@ def evaluate_dataset_consistency(*attribution_files, **kwargs):
 def evaluateDC(attributions_dir, selection = False):
     attr_files = [os.path.join(attributions_dir, f) for f in os.listdir(attributions_dir) if f.endswith('.pkl')]
     path_pieces =  os.path.normpath(attributions_dir).split(os.sep)
-    directory = os.path.join(__RESULTS_DIR__, path_pieces[-2])
+    directory = __RESULTS_DIR__
     filename = path_pieces[-1]
     if selection:
         filename += '_DCselect.csv'

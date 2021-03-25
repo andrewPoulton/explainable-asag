@@ -38,7 +38,7 @@ def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile = Non
 
 def evaluateRC(attribution_dir, group1, group2):
     if not os.path.isdir(__RESULTS_DIR__):
-        os.mkdir(os.path.isdir(__RESULTS_DIR__))
+        os.mkdir(__RESULTS_DIR__)
     group = re.sub('\-[0-9]$', '', group1)
     assert  group == re.sub('\-[0-9]$', '', group1), 'Need to evaluate RC using similar groups'
     runs1 = get_runs(group1)

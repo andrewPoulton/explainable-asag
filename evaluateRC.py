@@ -30,7 +30,7 @@ def evaluate_rationale_consistency(datadir, *pairs_of_attribution_files):
                        'run_id2':attr_data2.run_id,
                        'source': attr_data1.source,
                        'token_types': attr_data1.token_types})
-            to_json({str(k):str(v) for k,v in  rc}, os.path.join(datadir, model_name + '.json'))
+            to_json({str(k):str(v) for k,v in  rc.items()}, os.path.join(datadir, model_name + '.json'))
             rc_list.append(rc)
     return pd.DataFrame.from_records(rc_list)
 

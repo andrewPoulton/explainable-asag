@@ -27,7 +27,7 @@ def evaluate_rationale_consistency(datadir, *pairs_of_attribution_files):
             model_name = attr_data1.model_name
             rc.update({'model_name': model_name,
                        'run_id1':attr_data1.run_id,
-                       'run_id2':attr_data2.run_id
+                       'run_id2':attr_data2.run_id,
                        'source': attr_data1.source,
                        'token_types': attr_data1.token_types})
             to_json(rc, os.path.join(datadir, model_name + '.json'))

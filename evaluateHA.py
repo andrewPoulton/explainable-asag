@@ -35,7 +35,7 @@ def evaluateHA(annotation_dir, attributions_dir):
     group = re.sub('\-[0-9]$', '', path_pieces[-1])
     filepath =os.path.join(__RESULTS_DIR__, group + '_HA.csv')
     df = evaluate_human_agreement(annotation_dir, *attr_files)
-    df.to_csv(os.path.join(filepath)
+    df.to_csv(os.path.join(filepath))
 
 if __name__ == '__main__':
     fire.Fire(evaluateHA)

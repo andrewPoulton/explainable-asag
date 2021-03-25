@@ -18,12 +18,7 @@ __CUDA__ = torch.cuda.is_available()
 
 
 def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile = None):
-    try:
-        rc_list = load_pickle(backupfile)
-        run_ids = [rc['run_id1'] for rec in rc_list]
-    except:
-        rc_list = []
-        run_ids = []
+    rc_list = []
     for attr_file1, attr_file2 in pairs_of_attribution_files:
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)

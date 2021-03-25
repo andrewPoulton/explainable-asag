@@ -27,7 +27,7 @@ from copy import deepcopy
 from dataset import pad_tensor_batch
 #warnings.filterwarnings("error")
 #['IntegratedGradients', 'InputXGradient','Saliency','GradientShap','Occlusion']
-__RESULTS_DIR__ = os.path.join('results','attributions')
+__RESULTS_DIR__ = 'evaluations'
 __attr_methods__ = list(load_configs_from_file(os.path.join('configs', 'explain.yml'))['EXPLAIN'].keys())
 __aggr__ = ['L2', 'L1', 'sum']
 

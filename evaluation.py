@@ -124,7 +124,7 @@ class AttributionData:
             train_percent = 100,
             batch_size = 1,
             drop_last = False,
-            num_workers = 8 if  torch.cuda.is_available() else 0)
+            num_workers = 2 if  torch.cuda.is_available() else 0)
         return loader
 
 
@@ -245,11 +245,8 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
     attr_aggr_list = [attribution_method + '_' + aggr for attribution_method in __attr_methods__ for aggr in __aggr__]
-    try:
-        model1, config1 = attr_data1.load_model()
-        model2, config2 = attr_data2.load_model()
-    except:
-        return {attr_aggr: np.nan for attr_aggr in attr_aggr_list}
+    model1, config1 = attr_data1.load_model()
+    model2, config2 = attr_data2.load_model()
     model1.eval()
     model2.eval()
     if cuda:

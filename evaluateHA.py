@@ -28,8 +28,7 @@ def evaluate_human_agreement(annotation_dir, *attr_files):
     return pd.DataFrame.from_records(ha_list)
 
 def evaluateHA(annotation_dir, attributions_dir):
-    if not os.path.isdir(__RESULTS_DIR__):
-        os.mkdir(os.path.isdir(__RESULTS_DIR__))
+    os.makedirs(__RESULTS_DIR__, exist_ok=True)
     attr_files = [os.path.join(attributions_dir, f) for f in os.listdir(attributions_dir) if f.endswith('.pkl')]
     path_pieces =  os.path.normpath(attributions_dir).split(os.sep)
     group = re.sub('\-[0-9]$', '', path_pieces[-1])

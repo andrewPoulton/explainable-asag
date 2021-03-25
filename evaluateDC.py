@@ -37,12 +37,9 @@ def evaluate_dataset_consistency(*attribution_files, backupfile = None, **kwargs
     return pd.DataFrame.from_records(dc_list)
 
 def evaluateDC(attributions_dir, selection = True):
-    if not os.path.isdir( __RESULTS_DIR__):
-        os.mkdir(__RESULTS_DIR__)
-
     attr_files = [os.path.join(attributions_dir, f) for f in os.listdir(attributions_dir) if f.endswith('.pkl')]
+    print('EvaluateDC:', *attr_files)
     path_pieces =  os.path.normpath(attributions_dir).split(os.sep)
-
     group = re.sub('\-[0-9]$', '', path_pieces[-1])
     if selection:
         filepath = os.path.join(__RESULTS_DIR__, group + '_DC.csv')
@@ -53,8 +50,7 @@ def evaluateDC(attributions_dir, selection = True):
         filepath = os.path.join(__RESULTS_DIR__, group + '_DC_all.csv')
         backupfile = os.path.join(__RESULTS_DIR__, group,  'DC_all.pkl')
         kwargs = {}
-    if not os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
-        os.mkdir(os.path.join(__RESULTS_DIR__,group))
+    os.makedirs(os.path.join(__RESULTS_DIR__,group), exist_ok=True)
     to_pickle([], backupfile)
     pd.DataFrame().to_csv(filepath)
     df = evaluate_dataset_consistency(*attr_files, backupfile = backupfile  , cuda = __CUDA__,**kwargs)

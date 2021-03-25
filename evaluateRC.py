@@ -12,6 +12,7 @@ from evaluation import (
 import torch
 from wandbinteraction import get_runs
 from filehandling import load_pickle, to_pickle
+from configuration import load_configs_from_file
 import re
 __CUDA__ = torch.cuda.is_available()
 
@@ -36,26 +37,27 @@ def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile = Non
             to_pickle(rc_list, backupfile)
     return pd.DataFrame.from_records(rc_list)
 
-def evaluateRC(attribution_dir, group1, group2):
-    if not os.path.isdir(__RESULTS_DIR__):
-        os.mkdir(__RESULTS_DIR__)
+def evaluateRC(attribution_dir1, attribution_dir2):
+    attribution_dir1 =  os.path.normpath(attribution_dir1)
+    attribution_dir2 =  os.path.normpath(attribution_dir2)
+    group1 = attribution_dir1.split(os.sep)[-1]
+    group2 = attribution_dir2.split(os.sep)[-1]
     group = re.sub('\-[0-9]$', '', group1)
-    assert  group == re.sub('\-[0-9]$', '', group1), 'Need to evaluate RC using similar groups'
+    assert  group == re.sub('\-[0-9]$', '', group2), 'Need to evaluate RC using similar groups'
     runs1 = get_runs(group1)
     runs2 = get_runs(group2)
-    assert set(run.config['name'] for run in runs1) == set(run.config['name'] for run in runs2), 'Not compatible groups of runs.'
-    run_pairs = {run.config['name']: [run] for run in runs1}
+    model_names = load_configs_from_file(os.path.join('configs', 'evaluate.yml'))['models']
+    run_pairs = {name: [] for name in model_names}
+    for run in runs1:
+        run_pairs[run.config['name']].append(run)
     for run in runs2:
         run_pairs[run.config['name']].append(run)
-    run_pairs = [ (r1,r2) for (r1,r2) in run_pairs.values() if r1.state ==r2.state == 'finished']
-    #print(run_pairs)
-    get_attr_file = lambda g, run: os.path.join(attribution_dir, g, run.id +'.pkl')
-    file_pairs = [[get_attr_file(group1, r1), get_attr_file(group2, r2)] for r1, r2 in run_pairs]
-    print('File pairs:', *file_pairs)
-    filepath = os.path.join(__RESULTS_DIR__, group  + '_RC.csv')
+    run_pairs = [ [r1.id,r2.id] for (r1,r2) in run_pairs.values() if r1.state ==r2.state == 'finished']
+    file_pairs = [ [os.path.join(attribution_dir1, r1 + '.pkl'), os.path.join(attribution_dir2, r2 + '.pkl')] for r1,r2 in run_pairs]
+    print('EvaluateRC with pairs:',*file_pairs)
+    filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.pkl')
     backupfile  = os.path.join(__RESULTS_DIR__, group, 'RC.pkl')
-    if not os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
-        os.mkdir(os.path.join(__RESULTS_DIR__,group))
+    os.makedirs(os.path.join(__RESULTS_DIR__, group), exist_ok = True)
     to_pickle([], backupfile)
     pd.DataFrame().to_csv(filepath)
     df = evaluate_rationale_consistency(*file_pairs, backupfile = backupfile)

@@ -1,7 +1,3 @@
-CONFIGS_DIR = 'configs'
-REQUIRED  = ['DATA', 'DEFAULT']
-
-from warnings import warn
 from types import SimpleNamespace
 import os
 import yaml
@@ -15,18 +11,10 @@ def load_configs_from_file(file_path):
     return configs
 
 
-def load_all_configs():
-    master_config = dict()
-    for file_name in os.listdir(CONFIGS_DIR):
-        configs = load_configs_from_file(os.path.join(CONFIGS_DIR, file_name))
-        master_config.update(configs)
-    return master_config
-
-
 def load(*config_ids):
-    master_config = load_all_configs()
+    master_config = load_configs_from_file(os.path.join('configs', 'main.yml'))
     config = dict()
-    for R in REQUIRED:
+    for R in ['DATA', 'DEFAULT']:
         config.update(master_config[R])
     for c in config_ids:
         print(f"Load configs for '{c}'.")

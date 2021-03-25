@@ -55,6 +55,7 @@ def evaluateRC(attribution_dir, group1, group2):
     if os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
         os.mkdir(os.path.join(__RESULTS_DIR__,group))
     to_pickle([], backupfile)
+    pd.DataFrame().to_csv(filepath)
     df = evaluate_rationale_consistency(attr_file_pairs, backupfile = backupfile)
     df.to_csv(filepath)
 

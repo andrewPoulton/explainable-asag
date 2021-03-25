@@ -2,6 +2,8 @@ from types import SimpleNamespace
 import os
 import yaml
 
+__main_config__ = os.path.join('configs', 'main.yml')
+
 def load_configs_from_file(file_path):
     configs = dict()
     with open(file_path, 'r') as f:
@@ -12,7 +14,7 @@ def load_configs_from_file(file_path):
 
 
 def load(*config_ids):
-    master_config = load_configs_from_file(os.path.join('configs', 'main.yml'))
+    master_config = load_configs_from_file(__main_config__)
     config = dict()
     for R in ['DATA', 'DEFAULT']:
         config.update(master_config[R])

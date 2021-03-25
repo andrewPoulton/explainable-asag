@@ -11,11 +11,11 @@ from evaluation import (
 )
 import torch
 from wandbinteraction import get_runs
-
+import re
 __CUDA__ = torch.cuda.is_available()
 
 
-def evaluate_rationale_consistency(*pairs_of_attribution_files):
+def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile):
     rc_list = []
     for attr_file1, attr_file2 in pairs_of_attribution_files:
         attr_data1 = AttributionData(attr_file1)
@@ -28,19 +28,26 @@ def evaluate_rationale_consistency(*pairs_of_attribution_files):
     return pd.DataFrame.from_records(rc_list)
 
 def evaluateRC(attribution_dir, group1, group2):
+    if not os.path.isdir(__RESULTS_DIR__):
+        os.mkdir(os.path.isdir(__RESULTS_DIR__))
+    group = re.sub('\-[0-9]$', '', group1)
+    assert  group == re.sub('\-[0-9]$', '', group1), 'Need to evaluate RC using similar groups'
     runs1 = get_runs(group1)
     runs2 = get_runs(group2)
     assert set(run.config['name'] for run in runs1) == set(run.config['name'] for run in runs2), 'Not compatible groups of runs.'
     run_pairs = {run.config['name']: run for run in runs1}
     for run in runs2:
         run_pairs[run.config['name']].append(run)
-    get_attr_file = lambda group, run: os.path.join(attribution_dir, group, run.id +'.pkl')
+    get_attr_file = lambda g, run: os.path.join(attribution_dir, g, run.id +'.pkl')
     attr_file_pairs = [[get_attr_file(group1, run1), get_attr_file(group2,run2)] for name, run1, run2 in run_pairs.items()]
 
-    filename = group1 + group2 + '_RC.csv'
+    filepath = os.path.join(__RESULTS_DIR__, group  + '_RC.csv')
+    backupfile  = os.path.join(__RESULTS_DIR__, group, 'RC.pkl')
+    if os.path.isdir(os.path.join(__RESULTS_DIR__,group):
+        os.mkdir(os.path.join(__RESULTS_DIR__,group))
 
-    df = evaluate_rationale_consistency(*attr_pairs.values())
-    df.to_csv(os.path.join(__RESULTS_DIR__,filename))
+    df = evaluate_rationale_consistency(attr_file_pairs, backupfile = backupfile)
+    df.to_csv(filepath)
 
 if __name__ == '__main__':
     fire.Fire(evaluateRC)

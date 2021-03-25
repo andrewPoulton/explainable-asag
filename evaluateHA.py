@@ -11,7 +11,7 @@ from evaluation import (
 )
 import torch
 from wandbinteraction import get_runs
-
+import re
 
 __CUDA__ = torch.cuda.is_available()
 
@@ -28,14 +28,14 @@ def evaluate_human_agreement(annotation_dir, *attr_files):
     return pd.DataFrame.from_records(ha_list)
 
 def evaluateHA(annotation_dir, attributions_dir):
+    if not os.path.isdir(__RESULTS_DIR__):
+        os.mkdir(os.path.isdir(__RESULTS_DIR__))
     attr_files = [os.path.join(attributions_dir, f) for f in os.listdir(attributions_dir) if f.endswith('.pkl')]
     path_pieces =  os.path.normpath(attributions_dir).split(os.sep)
-    filename = path_pieces[-1] + '_HA.csv'
-    directory = __RESULTS_DIR__
-    if not os.path.isdir(directory):
-        os.mkdir(directory)
+    group = re.sub('\-[0-9]$', '', path_pieces[-1])
+    filepath =os.path.join(__RESULTS_DIR__, group + '_HA.csv')
     df = evaluate_human_agreement(annotation_dir, *attr_files)
-    df.to_csv(os.path.join(directory, filename))
+    df.to_csv(os.path.join(filepath)
 
 if __name__ == '__main__':
     fire.Fire(evaluateHA)

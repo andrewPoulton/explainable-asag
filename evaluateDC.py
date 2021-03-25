@@ -21,7 +21,7 @@ def evaluate_dataset_consistency(*attribution_files, **kwargs):
         dc_list.append(dc)
     return pd.DataFrame.from_records(dc_list)
 
-def evaluateDC(attributions_dir, selection = False):
+def evaluateDC(attributions_dir, selection = True):
     attr_files = [os.path.join(attributions_dir, f) for f in os.listdir(attributions_dir) if f.endswith('.pkl')]
     path_pieces =  os.path.normpath(attributions_dir).split(os.sep)
     directory = __RESULTS_DIR__

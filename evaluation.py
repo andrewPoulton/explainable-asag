@@ -228,7 +228,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
             for aggr, attr in df.loc[instance_id, attribution_method].items():
                 attr = scale_to_unit_interval(attr, aggr)
                 if aggr == 'sum':
-                    attr = [abs(a) for a in aggr]
+                    attr = [abs(a) for a in attr]
                 attr = [max([attr[t] for t in w]) for w in instance['word_structure']['student_answer']]
                 ap = average_precision_score(golden, attr)
                 ap_instance[attribution_method + '_' + aggr] = ap

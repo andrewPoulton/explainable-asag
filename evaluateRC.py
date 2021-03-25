@@ -11,20 +11,29 @@ from evaluation import (
 )
 import torch
 from wandbinteraction import get_runs
+from filehandling import load_pickle, to_pickle
 import re
 __CUDA__ = torch.cuda.is_available()
 
 
-def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile):
-    rc_list = []
+def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile = None):
+    try:
+        rc_list = load_pickle(backupfile)
+        run_ids = [rc['run_id1'] for rec in rc_list]
+    except:
+        rc_list = []
+        run_ids = []
     for attr_file1, attr_file2 in pairs_of_attribution_files:
+        if any(run_id in attr_file1 for run_id in run_ids):
+            continue
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)
         if attr_data1.is_compatible(attr_data2):
             rc = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__)
-            rc.update({'run_id1':attr_data1.run_id, 'run_id2':attr_data2.run_id,
-                       'attr_file1': attr_file1, 'attr_file2':attr_file2})
+            rc.update({'model_name': attr_data1.model_name,'run_id1':attr_data1.run_id, 'run_id2':attr_data2.run_id})
             rc_list.append(rc)
+        if backupfile:
+            to_pickle(rc_list, backupfile)
     return pd.DataFrame.from_records(rc_list)
 
 def evaluateRC(attribution_dir, group1, group2):
@@ -43,9 +52,9 @@ def evaluateRC(attribution_dir, group1, group2):
 
     filepath = os.path.join(__RESULTS_DIR__, group  + '_RC.csv')
     backupfile  = os.path.join(__RESULTS_DIR__, group, 'RC.pkl')
-    if os.path.isdir(os.path.join(__RESULTS_DIR__,group):
+    if os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
         os.mkdir(os.path.join(__RESULTS_DIR__,group))
-
+    to_pickle([], backupfile)
     df = evaluate_rationale_consistency(attr_file_pairs, backupfile = backupfile)
     df.to_csv(filepath)
 

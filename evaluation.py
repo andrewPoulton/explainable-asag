@@ -237,7 +237,8 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
     ha = ap_df.mean(axis=0).to_dict()
     if return_df:
         return ha, ap_df
-    return ha
+    else:
+        return ha
 
 
 def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = False):

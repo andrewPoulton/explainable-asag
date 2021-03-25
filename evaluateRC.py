@@ -30,7 +30,7 @@ def evaluate_rationale_consistency(datadir, *pairs_of_attribution_files):
                        'run_id2':attr_data2.run_id,
                        'source': attr_data1.source,
                        'token_types': attr_data1.token_types})
-            to_json(rc, os.path.join(datadir, model_name + '.json'))
+            to_json({str(k):str(v) for k,v in  rc}, os.path.join(datadir, model_name + '.json'))
             rc_list.append(rc)
     return pd.DataFrame.from_records(rc_list)
 
@@ -52,7 +52,7 @@ def evaluateRC(attribution_dir1, attribution_dir2):
     run_pairs = [ [r1.id,r2.id] for (r1,r2) in run_pairs.values() if r1.state ==r2.state == 'finished']
     file_pairs = [ [os.path.join(attribution_dir1, r1 + '.pkl'), os.path.join(attribution_dir2, r2 + '.pkl')] for r1,r2 in run_pairs]
     print('EvaluateRC with pairs:',*file_pairs)
-    filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.pkl')
+    filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.csv')
     datadir  = os.path.join(__RESULTS_DIR__, group, 'RC')
     os.makedirs(datadir, exist_ok = True)
     df = evaluate_rationale_consistency(datadir, *file_pairs)

@@ -44,19 +44,21 @@ def evaluateRC(attribution_dir, group1, group2):
     runs1 = get_runs(group1)
     runs2 = get_runs(group2)
     assert set(run.config['name'] for run in runs1) == set(run.config['name'] for run in runs2), 'Not compatible groups of runs.'
-    run_pairs = {run.config['name']: run for run in runs1}
+    run_pairs = {run.config['name']: [run] for run in runs1}
     for run in runs2:
         run_pairs[run.config['name']].append(run)
+    run_pairs = [ (r1,r2) for (r1,r2) in run_pairs.values() if r1.state ==r2.state == 'finished']
+    #print(run_pairs)
     get_attr_file = lambda g, run: os.path.join(attribution_dir, g, run.id +'.pkl')
-    attr_file_pairs = [[get_attr_file(group1, run1), get_attr_file(group2,run2)] for name, run1, run2 in run_pairs.items()]
-
+    file_pairs = [[get_attr_file(group1, r1), get_attr_file(group2, r2)] for r1, r2 in run_pairs]
+    print('File pairs:', *file_pairs)
     filepath = os.path.join(__RESULTS_DIR__, group  + '_RC.csv')
     backupfile  = os.path.join(__RESULTS_DIR__, group, 'RC.pkl')
     if not os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
         os.mkdir(os.path.join(__RESULTS_DIR__,group))
     to_pickle([], backupfile)
     pd.DataFrame().to_csv(filepath)
-    df = evaluate_rationale_consistency(attr_file_pairs, backupfile = backupfile)
+    df = evaluate_rationale_consistency(*file_pairs, backupfile = backupfile)
     df.to_csv(filepath)
 
 if __name__ == '__main__':

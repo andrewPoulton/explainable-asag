@@ -15,25 +15,18 @@ from filehandling import to_json, to_pickle
 
 __CUDA__ = torch.cuda.is_available()
 
-def evaluate_dataset_consistency(*attribution_files, backupfile = None, **kwargs):
-    try:
-        dc_list = load_pickle(backupfile)
-        run_ids = [it['run_id'] for it in dc_list]
-    except:
-        dc_list = []
-        run_ids = []
+def evaluate_dataset_consistency(*attribution_files, datadir, **kwargs):
+    dc_list = []
     for attr_file in attribution_files:
-        if any(run_id in attr_file for run_id in run_ids):
-            continue
-        else:
-            attr_data = AttributionData(attr_file)
-            dc = compute_dataset_consistency(attr_data, **kwargs)
-            dc.update({'run_id': attr_data.run_id,
-                       'source': attr_data.source,
-                       'token_types': attr_data.token_types})
-            dc_list.append(dc)
-            if backupfile:
-                to_pickle(dc_list, backupfile)
+        attr_data = AttributionData(attr_file)
+        dc = compute_dataset_consistency(attr_data, **kwargs)
+        model_name = attr_data.model_name
+        dc.update({'model': model_name,
+                   'run_id':  attr_data.run_id,
+                   'source': attr_data.source,
+                   'token_types': attr_data.token_types})
+        to_json(dc_list, os.path.join(datadir, model_name + '.json'))
+        dc_list.append(dc)
     return pd.DataFrame.from_records(dc_list)
 
 def evaluateDC(attributions_dir, selection = True):
@@ -43,17 +36,15 @@ def evaluateDC(attributions_dir, selection = True):
     group = re.sub('\-[0-9]$', '', path_pieces[-1])
     if selection:
         filepath = os.path.join(__RESULTS_DIR__, group + '_DC.csv')
-        backupfile = os.path.join(__RESULTS_DIR__, group,  'DC.pkl')
+        datadir = os.path.join(__RESULTS_DIR__, group,  'DC')
         kwargs = {'within_questions': True,
                   'between_questions': True}
     else:
         filepath = os.path.join(__RESULTS_DIR__, group + '_DC_all.csv')
-        backupfile = os.path.join(__RESULTS_DIR__, group,  'DC_all.pkl')
+        datadir = os.path.join(__RESULTS_DIR__, group,  'DC')
         kwargs = {}
-    os.makedirs(os.path.join(__RESULTS_DIR__,group), exist_ok=True)
-    to_pickle([], backupfile)
-    pd.DataFrame().to_csv(filepath)
-    df = evaluate_dataset_consistency(*attr_files, backupfile = backupfile  , cuda = __CUDA__,**kwargs)
+    os.makedirs(datadir, exist_ok=True)
+    df = evaluate_dataset_consistency(*attr_files, datadir = datadir  , cuda = __CUDA__,**kwargs)
     df.to_csv(filepath)
 
 if __name__ == '__main__':

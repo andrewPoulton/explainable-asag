@@ -11,23 +11,27 @@ from evaluation import (
 )
 import torch
 from wandbinteraction import get_runs
-from filehandling import load_pickle, to_pickle
+from filehandling import load_pickle, to_pickle, load_json, to_json
 from configuration import load_configs_from_file
 import re
 __CUDA__ = torch.cuda.is_available()
 
 
-def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile = None):
+def evaluate_rationale_consistency(datadir, *pairs_of_attribution_files):
     rc_list = []
     for attr_file1, attr_file2 in pairs_of_attribution_files:
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)
         if attr_data1.is_compatible(attr_data2):
             rc = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__)
-            rc.update({'model_name': attr_data1.model_name,'run_id1':attr_data1.run_id, 'run_id2':attr_data2.run_id})
+            model_name = attr_data1.model_name
+            rc.update({'model_name': model_name,
+                       'run_id1':attr_data1.run_id,
+                       'run_id2':attr_data2.run_id
+                       'source': attr_data1.source,
+                       'token_types': attr_data1.token_types})
+            to_json(rc, os.path.join(datadir, model_name + '.json'))
             rc_list.append(rc)
-        if backupfile:
-            to_pickle(rc_list, backupfile)
     return pd.DataFrame.from_records(rc_list)
 
 def evaluateRC(attribution_dir1, attribution_dir2):
@@ -49,11 +53,9 @@ def evaluateRC(attribution_dir1, attribution_dir2):
     file_pairs = [ [os.path.join(attribution_dir1, r1 + '.pkl'), os.path.join(attribution_dir2, r2 + '.pkl')] for r1,r2 in run_pairs]
     print('EvaluateRC with pairs:',*file_pairs)
     filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.pkl')
-    backupfile  = os.path.join(__RESULTS_DIR__, group, 'RC.pkl')
-    os.makedirs(os.path.join(__RESULTS_DIR__, group), exist_ok = True)
-    to_pickle([], backupfile)
-    pd.DataFrame().to_csv(filepath)
-    df = evaluate_rationale_consistency(*file_pairs, backupfile = backupfile)
+    datadir  = os.path.join(__RESULTS_DIR__, group, 'RC')
+    os.makedirs(datadir, exist_ok = True)
+    df = evaluate_rationale_consistency(datadir, *file_pairs)
     df.to_csv(filepath)
 
 if __name__ == '__main__':

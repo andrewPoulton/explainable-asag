@@ -25,8 +25,6 @@ def evaluate_rationale_consistency(*pairs_of_attribution_files, backupfile = Non
         rc_list = []
         run_ids = []
     for attr_file1, attr_file2 in pairs_of_attribution_files:
-        if any(run_id in attr_file1 for run_id in run_ids):
-            continue
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)
         if attr_data1.is_compatible(attr_data2):

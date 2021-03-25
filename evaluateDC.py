@@ -53,7 +53,7 @@ def evaluateDC(attributions_dir, selection = True):
         filepath = os.path.join(__RESULTS_DIR__, group + '_DC_all.csv')
         backupfile = os.path.join(__RESULTS_DIR__, group,  'DC_all.pkl')
         kwargs = {}
-    if os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
+    if not os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
         os.mkdir(os.path.join(__RESULTS_DIR__,group))
     to_pickle([], backupfile)
     pd.DataFrame().to_csv(filepath)

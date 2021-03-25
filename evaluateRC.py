@@ -52,7 +52,7 @@ def evaluateRC(attribution_dir, group1, group2):
 
     filepath = os.path.join(__RESULTS_DIR__, group  + '_RC.csv')
     backupfile  = os.path.join(__RESULTS_DIR__, group, 'RC.pkl')
-    if os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
+    if not os.path.isdir(os.path.join(__RESULTS_DIR__,group)):
         os.mkdir(os.path.join(__RESULTS_DIR__,group))
     to_pickle([], backupfile)
     pd.DataFrame().to_csv(filepath)

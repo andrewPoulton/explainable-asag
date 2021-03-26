@@ -96,7 +96,7 @@ class AttributionData:
         if isinstance(attribution_file_or_df, pd.DataFrame):
             self.df = df
         else:
-            self.df  = pd.read_pickle(attribution_file)
+            self.df  = pd.read_pickle(attribution_file_or_df)
         self.run_id = self.df['run_id'].unique()[0]
         self.model_name = self.df['model'].unique()[0]
         self.model_path = self.df['model_path'].unique()[0]

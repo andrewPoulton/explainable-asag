@@ -8,7 +8,7 @@ for dirpath, dirs, files in os.walk("attributions"):
             if f.endswith('.pkl'):
                 pickle_file = os.path.join(dirpath, d, f)
                 json_file = os.path.join('attributions_json', d, os.path.splitext(f)[0]+'.json')
-                print('pickle:', _file)
+                print('pickle:', pickle_file)
                 print('json:', json_file)
 #                 a = AttributionData(pickle_file)
 #                 a.to_json(json_file)

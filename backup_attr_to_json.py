@@ -10,5 +10,5 @@ for dirpath, dirs, files in os.walk("attributions"):
                 json_file = os.path.join('attributions_json', d, os.path.splitext(f)[0]+'.json')
                 print('pickle:', pickle_file)
                 print('json:', json_file)
-#                 a = AttributionData(pickle_file)
-#                 a.to_json(json_file)
+                a = AttributionData(pickle_file)
+                a.to_json(json_file)

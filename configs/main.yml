@@ -103,3 +103,11 @@ scientsbank:
 
 no_max:
   max_patience: null
+
+5way:
+ num_labels: 5
+ group: 5way
+
+3way:
+  num_labels: 3
+  group: 3way

@@ -93,9 +93,6 @@ class AnnotationData:
 class AttributionData:
     def __init__(self, attribution_file):
         self.df  = pd.read_pickle(attribution_file)
-        self.token_types = self.df.iloc[0].get('token_types', False)
-        self.df['token_types'] = self.token_types
-        self.attr_class = None
         self.run_id = self.df['run_id'].unique()[0]
         self.model_name = self.df['model'].unique()[0]
         self.model_path = self.df['model_path'].unique()[0]
@@ -103,7 +100,29 @@ class AttributionData:
         self.num_labels = self.df['num_labels'].unique()[0]
         self.origin = self.df['origin'].unique()[0]
         self.group = self.df['group'].unique()[0]
+        self.token_types = self.df.iloc[0].get('token_types', False)
+        self.df['token_types'] = self.token_types
+        run_info = ['run_id', 'model', 'model_path', 'source', 'origin', 'num_label', 'group', 'token_types', 'attributions']
+        self.run_info = run_info
+        self.attr_methods = __attr_methods__
+        self.attr_class = None
         self._df = self.df.copy()
+
+    def to_json(self, filepath):
+        info = {
+            'run_id': self.run_id,
+            'model': self.model_name,
+            'model_path': self.model_path,
+            'source': self.source,
+            'origin': self.origin,
+            'num_labels': self.num_labels,
+            'group': self.group,
+            'token_types': self.token_types,
+        }
+        info = stringify(info)
+        explained = stringify(self.df[self.attr_methods].to_dict())
+        to_json({'info':info, 'explained':explained},filepath)
+
 
     def is_compatible(self, attr_data):
         return self.model_path == attr_data.model_path and \
@@ -155,6 +174,16 @@ class AttributionData:
     def load_model(self):
         model, config = load_model_from_run(self.run_id)
         return model, config
+
+
+def stringify(d):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            stringify(v)
+        else:
+            v = str(v)
+            d.update({k: v})
+    return d
 
 
 def golden_saliency(annotation, instance_id, dataset):

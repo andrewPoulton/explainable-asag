@@ -17,7 +17,7 @@ declare -a Models=(
 
 for model in "${Models[@]}"
     do
-        python train.py "$model" --group 0
+        python train.py "$model" "$@"
         wandb sync --sync-all
         wandb sync --clean
         rm -r wandb

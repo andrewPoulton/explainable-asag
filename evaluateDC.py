@@ -25,7 +25,7 @@ def evaluate_dataset_consistency(*attribution_files, datadir, **kwargs):
                    'run_id':  attr_data.run_id,
                    'source': attr_data.source,
                    'token_types': attr_data.token_types})
-        to_json(dc_list, os.path.join(datadir, model_name + '.json'))
+        to_json({str(k): str(v) for k,v in dc.items()}, os.path.join(datadir, model_name + '.json'))
         dc_list.append(dc)
     return pd.DataFrame.from_records(dc_list)
 
@@ -41,7 +41,7 @@ def evaluateDC(attributions_dir, selection = True):
                   'between_questions': True}
     else:
         filepath = os.path.join(__RESULTS_DIR__, group + '_DC_all.csv')
-        datadir = os.path.join(__RESULTS_DIR__, group,  'DC')
+        datadir = os.path.join(__RESULTS_DIR__, group,  'DC_all')
         kwargs = {}
     os.makedirs(datadir, exist_ok=True)
     df = evaluate_dataset_consistency(*attr_files, datadir = datadir  , cuda = __CUDA__,**kwargs)

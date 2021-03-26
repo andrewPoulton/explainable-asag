@@ -25,10 +25,11 @@ import gc
 from collections import defaultdict
 from copy import deepcopy
 from dataset import pad_tensor_batch
+from filehandling import to_json, load_json
 #warnings.filterwarnings("error")
 #['IntegratedGradients', 'InputXGradient','Saliency','GradientShap','Occlusion']
 __RESULTS_DIR__ = 'evaluations'
-__attr_methods__ = list(load_configs_from_file(os.path.join('configs', 'explain.yml'))['EXPLAIN'].keys())
+__attr_methods__ = ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency']
 __aggr__ = ['L2', 'L1', 'sum']
 
 class AnnotationData:
@@ -91,8 +92,11 @@ class AnnotationData:
 
 
 class AttributionData:
-    def __init__(self, attribution_file):
-        self.df  = pd.read_pickle(attribution_file)
+    def __init__(self, attribution_file_or_df):
+        if isinstance(attribution_file_or_df, pd.DataFrame):
+            self.df = df
+        else:
+            self.df  = pd.read_pickle(attribution_file)
         self.run_id = self.df['run_id'].unique()[0]
         self.model_name = self.df['model'].unique()[0]
         self.model_path = self.df['model_path'].unique()[0]
@@ -102,8 +106,7 @@ class AttributionData:
         self.group = self.df['group'].unique()[0]
         self.token_types = self.df.iloc[0].get('token_types', False)
         self.df['token_types'] = self.token_types
-        run_info = ['run_id', 'model', 'model_path', 'source', 'origin', 'num_label', 'group', 'token_types', 'attributions']
-        self.run_info = run_info
+        self.info_columns = ['run_id', 'model', 'model_path', 'source', 'origin', 'num_label', 'group', 'token_types', 'attributions']
         self.attr_methods = __attr_methods__
         self.attr_class = None
         self._df = self.df.copy()
@@ -120,9 +123,39 @@ class AttributionData:
             'token_types': self.token_types,
         }
         info = stringify(info)
-        explained = stringify(self.df[self.attr_methods].to_dict())
+        explained = self.df[self.df.columns.difference(self.info_columns)]
+        explained = explained.to_dict(orient = 'records')
+        explained = stringify(explained)
         to_json({'info':info, 'explained':explained},filepath)
 
+    @staticmethod
+    def from_json(filepath):
+        attr_data = load_json(filepath)
+        info = attr_data['info']
+        explained = attr_data['explained']
+        info = {'run_id': info['run_id'],
+            'model': info['model'],
+            'model_path': info['model_path'],
+            'source': info['source'],
+            'origin': info['origin'],
+            'num_labels': int(info['num_labels']),
+            'group': info['group'],
+            'token_types': bool(info['token_types'])
+        }
+        df = pd.DataFrame.from_records(explained)
+        df = df.astype({
+            'instance_id':int,
+            'label':int,
+            'pred': int,
+            'attr_class':int,
+            'attr_class_pred_prob':float,
+            'num_labels':int
+                       })
+        for attr_meth in __attr_methods__:
+            df[attr_meth] = df[attr_meth].apply(lambda d: {k: [float(a) for a in l] for k,l in d.items()})
+        for k,v in info.items():
+            df[k] = v
+        return AttributionData(df)
 
     def is_compatible(self, attr_data):
         return self.model_path == attr_data.model_path and \
@@ -144,7 +177,6 @@ class AttributionData:
             drop_last = False,
             num_workers = 2 if  torch.cuda.is_available() else 0)
         return loader
-
 
     def get_pairdataloader(self, **kwargs):
         loader = pairdataloader(
@@ -176,15 +208,13 @@ class AttributionData:
         return model, config
 
 
-def stringify(d):
-    for k, v in d.items():
-        if isinstance(v, dict):
-            stringify(v)
-        else:
-            v = str(v)
-            d.update({k: v})
-    return d
-
+def stringify(o):
+    if isinstance(o, dict):
+        return {stringify(k):stringify(v) for k,v in o.items()}
+    elif isinstance(o, list):
+        return [stringify(i) for i in o]
+    else:
+        return str(o)
 
 def golden_saliency(annotation, instance_id, dataset):
     student_answer_words = dataset.get_instance(instance_id)['student_answers'].split()

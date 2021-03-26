@@ -95,6 +95,8 @@ class AttributionData:
     def __init__(self, attribution_file_or_df):
         if isinstance(attribution_file_or_df, pd.DataFrame):
             self.df = df
+        if isinstance(attribution_file_or_df, str) and attribution_file_or_df.endswith('.json'):
+            self.df = AttributionData.from_json(attribution_file_or_df)
         else:
             self.df  = pd.read_pickle(attribution_file_or_df)
         self.run_id = self.df['run_id'].unique()[0]

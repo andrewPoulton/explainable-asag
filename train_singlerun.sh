@@ -1,6 +1,6 @@
 #! /bin/bash
 declare -a Models=(
-#"bert-base"
+"bert-base"
 "bert-large"
 "roberta-base"
 "roberta-large"
@@ -17,7 +17,7 @@ declare -a Models=(
 
 for model in "${Models[@]}"
     do
-        python train.py "$model" beetle --group 3
+        python train.py "$model" --group 0
         wandb sync --sync-all
         wandb sync --clean
         rm -r wandb

@@ -93,10 +93,9 @@ class AnnotationData:
 class AttributionData:
     def __init__(self, attribution_file):
         self.df  = pd.read_pickle(attribution_file)
-        if 'token_types' not in self.df.columns:
-            self.df['token_types'] = False
+        self.token_types = self.df.iloc[0].get('token_types', False)
+        self.df['token_types'] = self.token_types
         self.attr_class = None
-        self.token_types = self.df['token_types'][0] if 'token_types' in self.df.columns else False
         self.run_id = self.df['run_id'].unique()[0]
         self.model_name = self.df['model'].unique()[0]
         self.model_path = self.df['model_path'].unique()[0]

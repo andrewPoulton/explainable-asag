@@ -44,7 +44,7 @@ def explain(source, name, token_types = False, origin = 'unseen_answers'):
     df = explain_model(loader, model, config,  attr_configs, origin, __CUDA__)
     df['run_id'] = 'random'
     df['model'] = name
-    df['model_path'] = model_name
+    df['model_path'] = model_path
     df['source'] = source
     df['origin'] = origin
     df['num_labels'] = num_labels

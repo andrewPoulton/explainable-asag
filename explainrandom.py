@@ -17,7 +17,7 @@ def explain(source, name, token_types = False, origin = 'unseen_answers'):
     group =  source + ('-token_types' if token_types else '')
     attr_directory = os.path.join(__EXPLANATIONS_DIR__, 'random_'+ group)
     os.makedirs(attr_directory, exist_ok=True)
-    path_to_attribution_file = os.path.join(attr_directory, model + '.pkl')
+    path_to_attribution_file = os.path.join(attr_directory, name + '.pkl')
     model_path = load_configs_from_file(os.path.join('configs', 'main.yml'))[name]['model_name']
     model = transformers.AutoModelForSequenceClassification.from_pretrained(model_path, num_labels = num_labels)
     config = {

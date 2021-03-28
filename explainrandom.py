@@ -21,8 +21,8 @@ def explain(source, name, token_types = False, origin = 'unseen_answers'):
     model_path = load_configs_from_file(os.path.join('configs', 'main.yml'))[name]['model_name']
     model = transformers.AutoModelForSequenceClassification.from_pretrained(model_path, num_labels = num_labels)
     config = {
-        'token_types' = token_types,
-        'num_labels' = num_labels
+        'token_types' : token_types,
+        'num_labels' : num_labels
     }
     model.init_weights()
     loader = dataloader(

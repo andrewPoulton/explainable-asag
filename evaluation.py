@@ -310,6 +310,10 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
     else:
         return ha
 
+def RCmetric2(diff_act, diff_attr):
+    act = torch.Tensor(diff_act)
+    attr = torch.Tensor(diff_attr)
+    return torch.sum(attr*torch.nn.Softmax(act/torch.mean(act))).item()
 
 def RCmetric(diff_act, diff_attr):
     N = len(diff_act)

@@ -307,6 +307,16 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         return ha
 
 
+def RCmetric(diff_act, diff_attr):
+    N = len(diff_act)
+    assert N==len(diff_attr)
+    mean_diff_act = np.mean(diff_act)
+    std_diff_act = np.std(diff_act)
+    std_diff_attr = np.std(diff_attr)
+    pts_on_left = [(x,y) for x,y in zip(diff_act, diff_attr) if x <= mean_diff_act+ std_diff_act]
+    pts_in_square = [(x,y) for x,y in pts_on_left if y <= std_diff_attr]
+    return len(pts_in_square)/len(pts_on_left)
+
 def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = False):
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
@@ -360,9 +370,9 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
     model1.cpu()
     model2.cpu()
     df_diffs = pd.DataFrame.from_records(diffs)
-    r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
+    scores = {col: RCmetric(df_diffs[['Activation', col]])[0] for col in __attr_aggr__}
     if return_df:
-        return r_scores, df_diffs
+        return scores, df_diffs
     else:
         return r_scores
 

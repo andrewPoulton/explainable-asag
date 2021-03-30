@@ -45,7 +45,7 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         run_pairs[run.config['name']].append(run)
     for run in runs2:
         run_pairs[run.config['name']].append(run)
-    run_pairs = [ [r1.id,r2.id] for (r1,r2) in run_pairs.values() if r1.state ==r2.state == 'finished']
+    run_pairs = [ [r1.id,r2.id] for (r1,r2) in run_pairs.values() ]
     file_pairs = [ [os.path.join(attribution_dir1, r1 + '.pkl'), os.path.join(attribution_dir2, r2 + '.pkl')] for r1,r2 in run_pairs]
     print('EvaluateRC with pairs:',*file_pairs)
     #filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.csv')
@@ -68,7 +68,10 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)
         model_name = attr_data1.model_name
-        rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = scale, overlap = overlap)
+        try:
+            rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = scale, overlap = overlap)
+        except:
+            continue
         df['model_name'] = model_name
         df['run_id1'] = attr_data1.run_id
         df['run_id2'] = attr_data2.run_id

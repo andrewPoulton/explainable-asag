@@ -307,7 +307,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         return ha
 
 
-def RCmetric(diffs_act, diff_attr):
+def RCmetric(diff_act, diff_attr):
     N = len(diff_act)
     assert N==len(diff_attr)
     mean_diff_act = np.mean(diff_act)

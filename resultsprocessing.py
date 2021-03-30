@@ -2,6 +2,7 @@ import pandas as pd
 from wandbinteraction import get_runs, get_run_info
 import os
 import numpy as np
+from evaluation import __attr_aggr__, __attr_methods__, __aggr__, RCmetric, RCmetric2
 
 models = [
     'bert-base',
@@ -114,3 +115,27 @@ def join_evaluation_results(evaluations_dir=os.path.join('results', 'evaluations
     df['model_index'] = df['model'].apply(lambda m: models.index(m) if isinstance(m, str) else np.nan).astype(int)
     df.to_csv(os.path.join('results','evaluationresults.csv'))
     return df
+
+
+def compute_RC_from_raw(in_dir, out_dir, filename = None, metric = RCmetric):
+    os.makedirs(out_dir, exist_ok=True)
+    if not filename:
+        filename = '-'.join(os.path.normpath(in_dir).split(os.sep)[-3:]) + '.csv'
+    ds = []
+    for f in os.listdir(in_dir):
+        print(f)
+        if f.endswith('.csv'):
+            df = pd.read_csv(os.path.join(in_dir, f))
+            d = {col: metric(df['Activation'], df[col]) for col in __attr_aggr__}
+            d.update({
+                'model_name': df['model_name'][0],
+                'source': df['source'][0],
+                'token_types': bool(df['token_types'][0])
+            })
+            ds.append(d)
+        else:
+            continue
+
+    result = pd.DataFrame.from_records(ds)
+    result.to_csv(os.path.join(out_dir,filename))
+    return result

@@ -65,10 +65,10 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
     datadir  = os.path.join(__RESULTS_DIR__, group, 'RC' + RCmode)
     os.makedirs(datadir, exist_ok = True)
     for attr_file1, attr_file2 in file_pairs:
+        try:
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)
         model_name = attr_data1.model_name
-        try:
             rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = scale, overlap = overlap)
         except:
             continue

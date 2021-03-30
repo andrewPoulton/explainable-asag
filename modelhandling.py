@@ -66,7 +66,7 @@ def save_activation(activations, name, mod, inp, out):
     act = out
     # for encoder layers seems we get ([ tensor() ], )
     # while for classifier we get [tensor()]
-    # so we select the corresponding tensor to save
+    # so we remove the brackets
     while not isinstance(act, torch.Tensor) and len(act) == 1:
         act = act[0]
     activations[name] = act

@@ -207,7 +207,12 @@ class AttributionData:
         self.attr_class = target
 
     def load_model(self):
-        model, config = load_model_from_run(self.run_id)
+        if self.run_id == 'random':
+            model = transformers.AutoModelForSequenceClassification.from_pretrained(self.model_path, num_labels = self.num_labels)
+            model.init_weights()
+            config = model.config.__dict__
+        else:
+            model, config = load_model_from_run(self.run_id)
         return model, config
 
 
@@ -313,10 +318,10 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
     if cuda:
         model1.cuda()
         model2.cuda()
-    attr_data1.set_attr_class('pred')
-    attr_data2.set_attr_class('pred')
-    df1 = attr_data1.df.set_index('instance_id')
-    df2 = attr_data2.df.set_index('instance_id')
+    # attr_data1.set_attr_class('pred')
+    # attr_data2.set_attr_class('pred')
+    # df1 = attr_data1.df.set_index('instance_id')
+    # df2 = attr_data2.df.set_index('instance_id'])
     diffs = []
     token_types = attr_data1.token_types
     loader = attr_data1.get_dataloader()
@@ -329,16 +334,26 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                 batch.cuda()
             act_diff = activation_diff_models(model1, model2, batch, token_types)
             # act_diff =  np.random.rand()
-            diff_instance['Activation'] = act_diff
-            for attribution_method in __attr_methods__:
-                for aggr in __aggr__:
-                    attr1 = df1.loc[instance_id, attribution_method][aggr]
-                    attr2 = df2.loc[instance_id, attribution_method][aggr]
-                    attr1 = scale_to_unit_interval(attr1, aggr)
-                    attr2 = scale_to_unit_interval(attr2, aggr)
-                    attr_diff = attribution_diff(attr1, attr2)
-                    # attr_diff =  np.random.rand()
-                    diff_instance[attribution_method + '_' + aggr] = attr_diff
+            df1 = attr_data1.df[attr_data1.df['instance_id']==instance_id]
+            df2 = attr_data2.df[attr_data1.df['instance_id']==instance_id]
+            assert (df1['attr_class'] == df2['attr_class']).all()
+            attr_classes = df1['attr_class'].tolist()
+            df1 = df1.set_index('attr_class', drop = True)
+            df2 = df2.set_index('attr_class', drop = True)
+            for attr_class in attr_classes:
+                diff_instance['Activation'] = act_diff
+                for attribution_method in __attr_methods__:
+                    for aggr in __aggr__:
+                        attr1 = df1.loc[attr_class, attribution_method][aggr]
+                        attr2 = df2.loc[attr_class, attribution_method][aggr]
+                        # attr1 = scale_to_unit_interval(attr1, aggr)
+                        # attr2 = scale_to_unit_interval(attr2, aggr)
+                        attr_diff = attribution_diff(attr1, attr2)
+                        # attr_diff =  np.random.rand()
+                        diff_instance[attribution_method + '_' + aggr] = attr_diff
+            diff_instance['attr_class'] = attr_class
+            diff_instance['pred_1'] = df1.loc[attr_class, 'pred']
+            diff_instance['pred_2'] = df2.loc[attr_class, 'pred']
             diffs.append(diff_instance)
             batch.cpu()
             pbar.update(1)
@@ -379,8 +394,8 @@ def compute_dataset_consistency(attr_data, cuda = False, return_df = False, **kw
                     attr1 = attributions1[aggr]
                     attr2 = attributions2[aggr]
                     attr1, attr2 = pad_attributions(attr1, attr2)
-                    attr1 = scale_to_unit_interval(attr1, aggr)
-                    attr2 = scale_to_unit_interval(attr2, aggr)
+                    # attr1 = scale_to_unit_interval(attr1, aggr)
+                    # attr2 = scale_to_unit_interval(attr2, aggr)
                     attr_diff = attribution_diff(attr1, attr2)
                     #attr_diff =  np.random.rand()
                     diff_instance[attribution_method + '_' + aggr] = attr_diff
@@ -391,6 +406,6 @@ def compute_dataset_consistency(attr_data, cuda = False, return_df = False, **kw
     df_diffs = pd.DataFrame.from_records(diffs)
     r_scores = {col: spearmanr(df_diffs[['Activation', col]])[0] for col in df_diffs.columns if not 'Activation' in col}
     if return_df:
-        r_scores, df_diffs
+        return r_scores, df_diffs
     else:
         return r_scores

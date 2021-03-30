@@ -79,6 +79,7 @@ def get_layer_activations(model, **kwargs):
             handle = module.register_forward_hook(partial(save_activation, activations, name))
             handles.append(handle)
 
+    # do forward pass to store activations
     with torch.no_grad():
         model(**kwargs)
 

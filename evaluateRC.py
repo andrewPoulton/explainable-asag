@@ -30,7 +30,7 @@ __CUDA__ = torch.cuda.is_available()
 #     #         rc_list.append(rc)
 #     # return pd.DataFrame.from_records(rc_list)
 
-def evaluateRC(attribution_dir1, attribution_dir2):
+def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
     attribution_dir1 =  os.path.normpath(attribution_dir1)
     attribution_dir2 =  os.path.normpath(attribution_dir2)
     group1 = attribution_dir1.split(os.sep)[-1]
@@ -49,13 +49,26 @@ def evaluateRC(attribution_dir1, attribution_dir2):
     file_pairs = [ [os.path.join(attribution_dir1, r1 + '.pkl'), os.path.join(attribution_dir2, r2 + '.pkl')] for r1,r2 in run_pairs]
     print('EvaluateRC with pairs:',*file_pairs)
     #filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.csv')
-    datadir  = os.path.join(__RESULTS_DIR__, group, 'RCoverlap')
+    if MODE == 'overlap':
+        overlap = True
+        scale = False
+        RCmode = 'overlap'
+    elif MODE == 'scale':
+        overlap = False
+        scale = True
+        RCmode = 'scale'
+    else:
+        overlap = False
+        scale = False
+        RCmode = ''
+
+    datadir  = os.path.join(__RESULTS_DIR__, group, 'RC' + RCmode)
     os.makedirs(datadir, exist_ok = True)
     for attr_file1, attr_file2 in file_pairs:
         attr_data1 = AttributionData(attr_file1)
         attr_data2 = AttributionData(attr_file2)
         model_name = attr_data1.model_name
-        rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = False, overlap = True)
+        rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = scale, overlap = overlap)
         df['model_name'] = model_name
         df['run_id1'] = attr_data1.run_id
         df['run_id2'] = attr_data2.run_id

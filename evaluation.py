@@ -364,7 +364,7 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                             attr1 = scale_to_unit_interval(attr1, aggr)
                             attr2 = scale_to_unit_interval(attr2, aggr)
                         if overlap:
-                            attr_diff = AttributionData(attr1, attr2)
+                            attr_diff = attribution_diff_overlap(attr1, attr2)
                         else:
                             attr_diff = attribution_diff(attr1, attr2)
                         # attr_diff =  np.random.rand()

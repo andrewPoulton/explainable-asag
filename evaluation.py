@@ -317,7 +317,7 @@ def RCmetric(diff_act, diff_attr):
     pts_in_square = [(x,y) for x,y in pts_on_left if y <= std_diff_attr]
     return len(pts_in_square)/len(pts_on_left)
 
-def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = False):
+def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = False, scale = True):
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
     attr_aggr_list = [attribution_method + '_' + aggr for attribution_method in __attr_methods__ for aggr in __aggr__]
@@ -356,8 +356,9 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                     for aggr in __aggr__:
                         attr1 = df1.loc[attr_class, attribution_method][aggr]
                         attr2 = df2.loc[attr_class, attribution_method][aggr]
-                        # attr1 = scale_to_unit_interval(attr1, aggr)
-                        # attr2 = scale_to_unit_interval(attr2, aggr)
+                        if scale:
+                            attr1 = scale_to_unit_interval(attr1, aggr)
+                            attr2 = scale_to_unit_interval(attr2, aggr)
                         attr_diff = attribution_diff(attr1, attr2)
                         # attr_diff =  np.random.rand()
                         diff_instance[attribution_method + '_' + aggr] = attr_diff

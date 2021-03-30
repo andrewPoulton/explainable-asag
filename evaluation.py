@@ -267,6 +267,10 @@ def activation_diff_batches(model, pair, token_types):
 def attribution_diff(attr1, attr2):
     return np.mean(np.abs(np.array(attr1) - np.array(attr2)))
 
+def attribution_diff_overlap(attr1, attr2):
+    return 1 - np.dot(attr1,attr2)/np.linalg.norm(attr1)/np.linalg.norm(attr2)
+
+
 # assumes attr are lists
 def pad_attributions(attr1, attr2):
     if len(attr1) < len(attr2):
@@ -359,7 +363,10 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                         if scale:
                             attr1 = scale_to_unit_interval(attr1, aggr)
                             attr2 = scale_to_unit_interval(attr2, aggr)
-                        attr_diff = attribution_diff(attr1, attr2)
+                        if overlap:
+                            attr_diff = AttributionData(attr1, attr2)
+                        else:
+                            attr_diff = attribution_diff(attr1, attr2)
                         # attr_diff =  np.random.rand()
                         diff_instance[attribution_method + '_' + aggr] = attr_diff
             diff_instance['attr_class'] = attr_class

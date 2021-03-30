@@ -307,7 +307,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         return ha
 
 
-def RCmetric(diff_act, diff_attr):
+def RCmetric(diffs_act, diff_attr):
     N = len(diff_act)
     assert N==len(diff_attr)
     mean_diff_act = np.mean(diff_act)
@@ -370,7 +370,7 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
     model1.cpu()
     model2.cpu()
     df_diffs = pd.DataFrame.from_records(diffs)
-    scores = {col: RCmetric(df_diffs[['Activation', col]])[0] for col in __attr_aggr__}
+    scores = {col: RCmetric(df_diffs['Activation'], df_diffs[col]) for col in __attr_aggr__}
     if return_df:
         return scores, df_diffs
     else:

@@ -30,7 +30,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 #warnings.filterwarnings("error")
 #['IntegratedGradients', 'InputXGradient','Saliency','GradientShap','Occlusion']
 __RESULTS_DIR__ = 'evaluations'
-__attr_methods__ = ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency', 'Random']
+__attr_methods__ = ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency']
 #__aggr__ = ['L2', 'L1', 'sum']
 __aggr__ = ['L2']
 __attr_aggr__ = [m + '_' + a if m!='Random' else m for m in __attr_methods__ for a in __aggr__]
@@ -260,6 +260,14 @@ def RCmetric(diff_act, diff_attr):
     S = 1.0 - torch.Tensor(diff_attr)
     return torch.sum(S*torch.nn.functional.softmax(D/torch.mean(D), dim = 0)).item()
 
+# def attribution_diff(attr1, attr2):
+#     ap1 = average_precision_score([round(a) for a in attr1], attr2)
+#     ap2 = average_precision_score([round(a) for a in attr2], attr1)
+#     return 0.5*(ap1+ap2)
+
+def attribution_diff(attr1, attr2):
+    return 1.0 - cos_sim(attr1, attr2)
+
 def compute_human_agreement(attr_data, ann_data, return_df = False):
     ann_data.set_source(attr_data.source)
     if not attr_data.attr_class == 'pred':
@@ -289,7 +297,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
     else:
         return ha
 
-def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = False, scale = False):
+def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = True, scale = True):
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
     attr_aggr_list = [attribution_method + '_' + aggr for attribution_method in __attr_methods__ for aggr in __aggr__]
@@ -330,8 +338,7 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                         if scale:
                             attr1 = scale_to_unit_interval(attr1, 'L2')
                             attr2 = scale_to_unit_interval(attr2, 'L2')
-                        diff = 1.0 - cos_sim(attr1, attr2)
-                        diff_instance['Random'] = attr_diff
+                        diff_instance['Random'] = attribution_diff(attr1, attr2)
                     else:
                         for aggr in __aggr__:
                             attr1 = df1.loc[attr_class, attribution_method][aggr]
@@ -339,14 +346,12 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                             if scale:
                                 attr1 = scale_to_unit_interval(attr1, aggr)
                                 attr2 = scale_to_unit_interval(attr2, aggr)
-                            attr_diff = 1.0 - cos_sim(attr1, attr2)
                             # if overlap:
                             #     attr_diff = attribution_diff_overlap(attr1, attr2)
                             # else:
                             #     attr_diff = attribution_diff(attr1, attr2)
                             # attr_diff =  np.random.rand()
-                            diff_instance[attribution_method + '_' + aggr] = attr_diff
-
+                            diff_instance[attribution_method + '_' + aggr] = attribution_diff(attr1, attr2)
             diff_instance['attr_class'] = attr_class
             diff_instance['pred_1'] = df1.loc[attr_class, 'pred']
             diff_instance['pred_2'] = df2.loc[attr_class, 'pred']
@@ -362,28 +367,6 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
     else:
         return r_scores
 
-def get_diffs_for_random_attrs(source):
-    loader = dataloader(
-        data_file = __TEST_DATA__,
-        val_mode = True,
-        data_source = source,
-        data_val_origin = 'unseen_answers',
-        vocab_file = 'bert-base-uncased',
-        num_labels = 2,
-        train_percent = 100,
-        batch_size = 1,
-        drop_last = False,
-        num_workers = 0)
-    diffs = []
-    for batch in loader:
-        n = batch.input.size(1)
-        attr1 = [np.random.rand() for _ in range(n)]
-        attr2 = [np.random.rand() for _ in range(n)]
-        attr1 = scale_to_unit_interval(attr1, 'L2')
-        attr2 = scale_to_unit_interval(attr2, 'L2')
-        diff = 1.0 - cos_sim(attr1, attr2)
-        diffs.append(diff)
-    return diffs
 
  # def compute_dataset_consistency(attr_data, cuda = False, return_df = False, **kwargs):
  #    token_types = attr_data.token_types

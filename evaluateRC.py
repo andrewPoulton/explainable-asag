@@ -52,7 +52,7 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         RCmode = ''
 
     datadir  = os.path.join(__RESULTS_DIR__, group)
-    os.makedirs(datadir, exist_ok = True)
+    os.makedirs(os.path.join(datadir, 'RC' + RCmode), exist_ok = True)
     for attr_file1, attr_file2 in file_pairs:
         try:
             attr_data1 = AttributionData(attr_file1)

@@ -363,7 +363,7 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
     model1.cpu()
     model2.cpu()
     df_diffs = pd.DataFrame.from_records(diffs)
-    scores = {col: RCmetric(df_diffs['Activation'], df_diffs[col]) for col in __attr_aggr__}
+    scores = {col: RCmetric(df_diffs['Activation'], df_diffs[col]) for col in ['GradientShap_L2', 'InputXGradient_L2', 'IntegratedGradients_L2', 'Occlusion_L2','Saliency_L2', 'Random']}
     if return_df:
         return scores, df_diffs
     else:

@@ -68,7 +68,7 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         df['source'] = attr_data1.source
         df['token_types'] = attr_data1.token_types
         df.to_csv(os.path.join(datadir, model_name + '.csv'))
-        to_json(rc, os.path.join(datadir, 'RC' + group + '.json'))
+        to_json(rc, os.path.join(datadir,'RC_'+ model_name + '.json'))
 
 if __name__ == '__main__':
     fire.Fire(evaluateRC)

@@ -5,8 +5,7 @@ from evaluation import (
     AnnotationData,
     AttributionData,
     compute_human_agreement,
-    compute_rationale_consistency,
-    compute_dataset_consistency,
+    compute_rationale_consistency
     __RESULTS_DIR__
 )
 import torch

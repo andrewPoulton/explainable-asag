@@ -60,7 +60,7 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         except IOError:
             continue
         model_name = attr_data1.model_name
-        rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = scale, overlap = overlap)
+        rc, df = compute_rationale_consistency(attr_data1, attr_data2, __CUDA__, return_df = True, scale = scale)
 
         df['model_name'] = model_name
         df['run_id1'] = attr_data1.run_id

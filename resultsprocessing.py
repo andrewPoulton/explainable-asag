@@ -2,7 +2,9 @@ import pandas as pd
 from wandbinteraction import get_runs, get_run_info
 import os
 import numpy as np
-from evaluation import __attr_aggr__, __attr_methods__, __aggr__, RCmetric, RCmetric2
+from evaluation import __attr_aggr__, __attr_methods__, __aggr__, RCmetric
+from evaluation import RCmetric
+from dataset import dataloader,__TEST_DATA__
 
 models = [
     'bert-base',
@@ -117,15 +119,17 @@ def join_evaluation_results(evaluations_dir=os.path.join('results', 'evaluations
     return df
 
 
-def compute_RC_from_raw(in_dir, out_dir, filename = None, metric = RCmetric):
-    os.makedirs(out_dir, exist_ok=True)
-    if not filename:
-        filename = '-'.join(os.path.normpath(in_dir).split(os.sep)[-3:]) + '.csv'
+def drop_not_L2(df):
+    columns = [col for col in df.columns if not (col.endswith('_L1') or col.endswith('_sum'))]
+    df = df[columns]
+    df.columns = [col.replace('_L2','') if col.endswith('_L2') else col for col in df.columns]
+    return df
+
+def RC_from_raw(in_dir, metric = RCmetric):
     ds = []
     for f in os.listdir(in_dir):
-        print(f)
         if f.endswith('.csv'):
-            df = pd.read_csv(os.path.join(in_dir, f))
+            df = pd.read_csv(os.path.join(in_dir, f), index_col = 0)
             d = {col: metric(df['Activation'], df[col]) for col in __attr_aggr__}
             d.update({
                 'model_name': df['model_name'][0],
@@ -135,7 +139,38 @@ def compute_RC_from_raw(in_dir, out_dir, filename = None, metric = RCmetric):
             ds.append(d)
         else:
             continue
+    df = pd.DataFrame.from_records(ds)
+    df = drop_not_L2(df)
+    return df
 
-    result = pd.DataFrame.from_records(ds)
-    result.to_csv(os.path.join(out_dir,filename))
-    return result
+def save_RC():
+    RCdirs = [
+    'raw/evaluations/beetle/RCoverlap/',
+    'raw/evaluations/scientsbank/RCoverlap/',
+    'raw/evaluations/beetle-token_types/RCoverlap/',
+    'raw/evaluations/scientsbank-token_types/RCoverlap/']
+    dfs = []
+    for d in RCdirs:
+        dfs.append(RC_from_raw(d))
+
+    df = pd.concat(dfs, axis = 0)
+    df.to_csv('results/RC.csv')
+
+
+def save_HA():
+    HAdir = 'raw/HA'
+    dfs = []
+    for f in os.listdir(HAdir):
+        if f.endswith('.csv'):
+            df = pd.read_csv(os.path.join(HAdir, f), index_col = 0)
+            info = df['run_id'].apply(get_run_info).tolist()
+            info =  pd.DataFrame.from_records(info)
+            df = df.drop(columns =['run_id', 'attr_file'])
+            df = drop_not_L2(df)
+            df = pd.concat([df, info], axis = 1)
+            df = df.rename(columns = {'model':'model_name'})
+            dfs.append(df)
+        else:
+            continue
+    df = pd.concat(dfs, axis = 0)
+    df.to_csv('results/HA.csv')

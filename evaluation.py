@@ -33,7 +33,7 @@ __RESULTS_DIR__ = 'evaluations'
 __attr_methods__ = ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency', 'Random']
 #__aggr__ = ['L2', 'L1', 'sum']
 __aggr__ = ['L2']
-__attr_aggr__ = [m + '_' + a for m in __attr_methods__ for a in __aggr__]
+__attr_aggr__ = [m + '_' + a if m!='Random' else m for m in __attr_methods__ for a in __aggr__]
 
 class AnnotationData:
     def __init__(self, annotation_dir, aggr = True):

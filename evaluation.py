@@ -331,7 +331,7 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
             for attr_class in attr_classes:
                 diff_instance['Activation'] = act_diff
                 #for attribution_method in __attr_methods__:
-                for attribution_method in ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency', 'Random']
+                for attribution_method in ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency', 'Random']:
                     if attribution_method == 'Random':
                         n = batch.input.size(1)
                         attr1 = [np.random.rand() for _ in range(n)]

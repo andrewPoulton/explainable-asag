@@ -51,8 +51,8 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         scale = True
         RCmode = ''
 
-    datadir  = os.path.join(__RESULTS_DIR__, group)
-    os.makedirs(os.path.join(datadir, 'RC' + RCmode), exist_ok = True)
+    datadir  = os.path.join(__RESULTS_DIR__, group,  'RC' + RCmode)
+    os.makedirs(datadir, exist_ok = True)
     for attr_file1, attr_file2 in file_pairs:
         try:
             attr_data1 = AttributionData(attr_file1)
@@ -67,8 +67,8 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
         df['run_id2'] = attr_data2.run_id
         df['source'] = attr_data1.source
         df['token_types'] = attr_data1.token_types
-        df.to_csv(os.path.join(datadir, 'RC' + RCmode, model_name + '.csv'))
-        to_json(rc, os.path.join(datadir, group + '_RC.csv'))
+        df.to_csv(os.path.join(datadir, model_name + '.csv'))
+        to_json(rc, os.path.join(datadir, 'RC' + group + '.json'))
 
 if __name__ == '__main__':
     fire.Fire(evaluateRC)

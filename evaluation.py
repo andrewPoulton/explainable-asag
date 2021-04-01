@@ -330,7 +330,8 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
             df2 = df2.set_index('attr_class', drop = True)
             for attr_class in attr_classes:
                 diff_instance['Activation'] = act_diff
-                for attribution_method in __attr_methods__:
+                #for attribution_method in __attr_methods__:
+                for attribution_method in ['GradientShap', 'InputXGradient', 'IntegratedGradients', 'Occlusion','Saliency', 'Random']
                     if attribution_method == 'Random':
                         n = batch.input.size(1)
                         attr1 = [np.random.rand() for _ in range(n)]
@@ -340,7 +341,8 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                             attr2 = scale_to_unit_interval(attr2, 'L2')
                         diff_instance['Random'] = attribution_diff(attr1, attr2)
                     else:
-                        for aggr in __aggr__:
+                        for aggr in ['L2']:
+                        #for aggr in __aggr__:
                             attr1 = df1.loc[attr_class, attribution_method][aggr]
                             attr2 = df2.loc[attr_class, attribution_method][aggr]
                             if scale:

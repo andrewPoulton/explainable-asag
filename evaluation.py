@@ -260,12 +260,12 @@ def RCmetric(diff_act, diff_attr):
     S = 1.0 - torch.Tensor(diff_attr)
     return torch.sum(S*torch.nn.functional.softmax(D/torch.mean(D), dim = 0)).item()
 
-# def attribution_diff(attr1, attr2):
-#     ap1 = average_precision_score([round(a) for a in attr1], attr2)
-#     ap2 = average_precision_score([round(a) for a in attr2], attr1)
-#     return 0.5*(ap1+ap2)
+def attribution_diff2(attr1, attr2):
+    ap1 = average_precision_score([round(a) for a in attr1], attr2)
+    ap2 = average_precision_score([round(a) for a in attr2], attr1)
+    return 0.5*(ap1+ap2)
 
-def attribution_diff(attr1, attr2):
+def attribution_diff1(attr1, attr2):
     return 1.0 - cos_sim(attr1, attr2)
 
 def compute_human_agreement(attr_data, ann_data, return_df = False):
@@ -299,10 +299,13 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
     else:
         return ha
 
-def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = True, scale = True):
+def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_df = True, scale = True, diff2 = False):
     if not attr_data1.is_compatible(attr_data2):
         raise Exception('Can only compute rationale consistency for compatible AttributionData.')
-    attr_aggr_list = [attribution_method + '_' + aggr for attribution_method in __attr_methods__ for aggr in __aggr__]
+    if diff2:
+        attribution_diff = attribution_diff2
+    else:
+        attribution_diff = attribution_diff1
     model1, config1 = attr_data1.load_model()
     model2, config2 = attr_data2.load_model()
     model1.eval()

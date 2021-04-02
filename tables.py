@@ -2,26 +2,60 @@ import pandas as pd
 from evaluation import __attr_aggr__, __attr_methods__
 import os
 from functools import reduce
-
-models = [
-    'bert-base',
-    'bert-large',
-    'roberta-base',
-    'roberta-base',
-    'roberta-base',
-    'roberta-large',
-    'albert-base',
-    'albert-large',
-    'albert-large',
-    'distilbert-base',
-    'distilroberta',
-    'distilbert-base-squad2',
-    'roberta-base-squad2',
-    'distilroberta-base-squad2',
-    'bert-base-squad2',
-    'albert-base-squad2']
+from configuration import load_configs_from_file
+short_model_names = {
+    'bert-base':'bert-base',
+    'bert-large':'bert-large',
+    'roberta-base':'roberta-base',
+    'roberta-base':'roberta-base',
+    'roberta-base':'roberta-base',
+    'roberta-large':'roberta-large',
+    'albert-base':'albert-base',
+    'albert-large':'albert-large',
+    'albert-large':'albert-large',
+    'distilbert-base':'distilbert',
+    'distilroberta':'distilroberta',
+    'distilbert-base-squad2':'distilbert-squad2',
+    'roberta-base-squad2':'roberta-squad2',
+    'distilroberta-base-squad2':'distilroberta-squad2',
+    'bert-base-squad2':'bert-squad2',
+    'albert-base-squad2':'albert-squad2'}
+models = list(short_model_names.keys())
 model_index = {m: models.index(m) for m in models}
+short_model_index = {short_model_names[m]:i for m,i in model_index.items()}
 to_model_index = lambda m: m.replace(model_index)
+to_short_model_index = lambda m: m.replace(short_model_index)
+cfg = load_configs_from_file('configs/main.yml')
+model_paths = {m: cfg[m]['model_name']  for m in models}
+short_model_paths = {short_model_names[m]: cfg[m]['model_name']  for m in models}
+
+
+def latex_col(vals, std = None, digits = 2, std_digits = None):
+    sort = vals.sort_values(ascending = False).tolist()
+    out = []
+    if std is not None:
+        if std_digits is None:
+            std_digits = digits
+        for v, s in zip(vals, std):
+            if sort.index(v) == 0:
+                it = r"$\boldsymbol{{{:.{}f}}} \ (\pm {:.{}f})$".format(v, digits, s, std_digits)
+            elif sort.index(v) == 1:
+                it = r"$\underline{{{:.{}f}}} \ (\pm {:.{}f})$".format(v, digits, s, std_digits)
+            else:
+                it = r"${:.{}f} \ (\pm {:.{}f})$".format(v, digits, s, std_digits)
+            out.append(it)
+        return out
+    else:
+        for v in vals:
+            if sort.index(v) == 0:
+                it = r"$\boldsymbol{{{:.{}f}}}$".format(v, digits)
+            elif sort.index(v) == 1:
+                it = r"$\underline{{{:.{}f}}}$".format(v, digits)
+            else:
+                it = r"${:.{}f}$".format(v, digits)
+            out.append(it)
+        return out
+
 
 def trainingresults():
     df = pd.read_csv('results/trainingresults.csv', index_col = 0)
@@ -52,73 +86,67 @@ def trainingresults():
     return df, tex
 
 
-# def latex_val(v, digits):
-#     return r"\boldsymbol{{{:.{}f}}}".format(v, digits)
-#         elif sort.index(v)==1:
-#             return r"\underline{{{:.{}f}}}".format(v, digits)
-#         else:
-#             return _v
-
-# def latex_std(s, digits):
-#     return r"(\pm {0:.{}f})".format(s, digits)
-
-def latex_col(vals, std = None, digits = 2, std_digits = None):
-    sort = vals.sort_values(ascending = False).tolist()
-    out = []
-    if std is not None:
-        if std_digits is None:
-            std_digits = digits
-        for v, s in zip(vals, std):
-            if sort.index(v) == 0:
-                it = r"$\boldsymbol{{{:.{}f}}} \ (\pm {:.{}f})$".format(v, digits, s, std_digits)
-            elif sort.index(v) == 1:
-                it = r"$\underline{{{:.{}f}}} \ (\pm {:.{}f})$".format(v, digits, s, std_digits)
-            else:
-                it = r"${:.{}f} \ (\pm {:.{}f})$".format(v, digits, s, std_digits)
-            out.append(it)
-        return out
-    else:
-        for v in enumerate(vals):
-            if sort.index(v) == 0:
-                it = r"$\boldsymbol{{{:.{}f}}}$".format(v, digits)
-            elif sort.index(v) == 1:
-                it = r"$\underline{{{:.{}f}}}$".format(v, digits)
-            else:
-                it = r"${:.{}f}$".format(v, digits)
-            out.append(it)
-        return out
-
-
-def evaluationresults():
+def evaluationresults(source, drop_cols = [], with_TT = True, with_means = True):
     dRC = pd.read_csv('results/RC.csv', index_col=0)
     dHA = pd.read_csv('results/HA.csv', index_col=0)
     dRC['metric'] = 'RC'
     dHA['metric'] = 'HA'
     df = pd.concat([dRC, dHA], axis = 0).reset_index(drop = True)
-    out =[]
-    for k, source in enumerate(['scientsbank', 'beetle']):
-        dfs = []
-        for method in __attr_methods__:
-            for metric in ['HA', 'RC']:
-                _df = df[(df['source']==source)&(df['metric']==metric)]
-                col = metric + '_' + method
-                vals = _df[_df['metric']==metric][method]
+    dfs = []
+    means = {' ': 'mean'}
+    for method in __attr_methods__ + ['Random']:
+        if method in drop_cols:
+            continue
+        for metric in ['HA', 'RC']:
+            _df = df[(df['source']==source)&(df['metric']==metric)]
+            col = method + '_' + metric
+            vals = 10*_df[_df['metric']==metric][method]
+            col_mean = r'${:.2f}$'.format(vals.mean())
+            means.update({col:col_mean})
+            try:
                 col_vals = latex_col(vals, digits = 2)
-                token_types = _df[_df['metric']==metric]['token_types']
-                model_names =  _df[_df['metric']==metric]['model_name']
-                _df = pd.DataFrame({
-                    'model_name': model_names,
-                    'token_types': token_types})
-                _df[col] = [str(v) for v in col_vals]
-                dfs.append(_df)
-        _df = reduce(lambda x, y: pd.merge(x, y, on =  ['model_name', 'token_types']), dfs)
-        _df = _df.sort_values('model_name', key = to_model_index)
-        _df.reset_index(drop = True)
-        _df.set_index(['model_name', 'token_types'])
-        out.append(_df)
-        with open(os.path.join('tables', f'evaluations_{source}.tex'), 'w') as f:
-            f.write(_df.to_latex(index = False))
-    return out
+            except:
+                col_vals = ['']*len(_df)
+            token_types = _df[_df['metric']==metric]['token_types']
+            model_names =  _df[_df['metric']==metric]['model_name']
+            _df = pd.DataFrame({
+                'model_name': model_names,
+                'token_types': token_types})
+            _df[col] = [str(v) for v in col_vals]
+            dfs.append(_df)
+    _df = reduce(lambda x, y: pd.merge(x, y, on =  ['model_name', 'token_types']), dfs)
+    _df['sort_index'] = [model_index[m] + (0.5 if t else 0.0)
+                            for m,t in zip(_df['model_name'], _df['token_types'])]
+    _df['model_name'] = _df['model_name'].replace(short_model_names)
+    if with_TT:
+        _df['model_name'] = [m + ('-TT' if t else '') for m,t in zip(_df['model_name'], _df['token_types'])]
+    else:
+        _df = _df[_df['token_types']]
+    _df = _df.drop(columns = ['token_types'])
+    _df = _df.rename(columns = {'model_name': ' '})
+    _df = _df.sort_values('sort_index').drop(columns = ['sort_index'])
+    if with_means:
+        _df = _df.append(means, ignore_index = True)
+    tex = to_latex(_df)
+    # with open(os.path.join('tables', f'evaluations_{source}.tex'), 'w') as f:
+    #     f.write(tex)
+    return _df
+
+
+def to_latex(df):
+    symbols = {'\$':'$', ' ': '', '\\{': '{', '\\}': '}', r'\textbackslash': '\\'}
+    tex = df.to_latex(index = False)
+    for k,v in symbols.items():
+        tex = tex.replace(k,v)
+    print(tex)
+    return tex
+
+
+
+
+
+
+
 # def evaluationresults(aggr = 'L2', source = 'scientsbank'):
 #     df = pd.read_csv('results/evaluationresults.csv', index_col = 0)
 #     df = df[df['source']==source]

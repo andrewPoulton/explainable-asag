@@ -130,7 +130,7 @@ def RC_from_raw(in_dir, metric = RCmetric):
     for f in os.listdir(in_dir):
         if f.endswith('.csv'):
             df = pd.read_csv(os.path.join(in_dir, f), index_col = 0)
-            d = {col: metric(df['Activation'], df[col]) for col in __attr_aggr__}
+            d = {col: metric(df['Activation'], df[col]) for col in __attr_aggr__ + ['Random']}
             d.update({
                 'model_name': df['model_name'][0],
                 'source': df['source'][0],
@@ -145,10 +145,10 @@ def RC_from_raw(in_dir, metric = RCmetric):
 
 def save_RC():
     RCdirs = [
-    'raw/evaluations/beetle/RCoverlap/',
-    'raw/evaluations/scientsbank/RCoverlap/',
-    'raw/evaluations/beetle-token_types/RCoverlap/',
-    'raw/evaluations/scientsbank-token_types/RCoverlap/']
+    'raw/RC/beetle',
+    'raw/RC/scientsbank',
+    'raw/RC/beetle-token_types',
+    'raw/RC/scientsbank-token_types']
     dfs = []
     for d in RCdirs:
         dfs.append(RC_from_raw(d))

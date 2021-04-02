@@ -34,7 +34,7 @@ def evaluateRC(attribution_dir1, attribution_dir2, MODE = None):
     file_pairs = [ [os.path.join(attribution_dir1, r1 + '.pkl'), os.path.join(attribution_dir2, r2 + '.pkl')] for r1,r2 in run_pairs]
     print('EvaluateRC with pairs:',*file_pairs)
     #filepath =  os.path.join(__RESULTS_DIR__, group + '_RC.csv')
-    elif MODE == 'diff2':
+    if MODE == 'diff2':
         diff2 = True
         scale = True
         RCmode = '2'

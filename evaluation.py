@@ -272,8 +272,8 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
     ann_data.set_source(attr_data.source)
     if not attr_data.attr_class == 'pred':
         attr_data.set_attr_class('pred')
-        df = attr_data.df.set_index('instance_id')
-        ap_scores = []
+    df = attr_data.df.set_index('instance_id')
+    ap_scores = []
     dataset = attr_data.get_dataset()
     for i, ann in tqdm(ann_data.annotations.iterrows(), desc = f'Computing human agreement: {attr_data.run_id}'):
         annotation = ann['annotation']
@@ -281,6 +281,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
         instance = dataset.get_instance(instance_id, word_structure = True)
         golden = golden_saliency(annotation, instance_id, dataset)
         ap_instance = defaultdict(float)
+        ap_instance['Random'] = average_precision_score(golden, [np.random.rand() for _ in golden])
         for attribution_method in __attr_methods__:
             for aggr, attr in df.loc[instance_id, attribution_method].items():
                 attr = scale_to_unit_interval(attr, aggr)
@@ -290,6 +291,7 @@ def compute_human_agreement(attr_data, ann_data, return_df = False):
                 ap = average_precision_score(golden, attr)
                 ap_instance[attribution_method + '_' + aggr] = ap
                 ap_scores.append(ap_instance)
+
     ap_df = pd.DataFrame.from_records(ap_scores)
     ha = ap_df.mean(axis=0).to_dict()
     if return_df:
@@ -354,10 +356,10 @@ def compute_rationale_consistency(attr_data1, attr_data2, cuda = False, return_d
                             #     attr_diff = attribution_diff(attr1, attr2)
                             # attr_diff =  np.random.rand()
                             diff_instance[attribution_method + '_' + aggr] = attribution_diff(attr1, attr2)
-            diff_instance['attr_class'] = attr_class
-            diff_instance['pred_1'] = df1.loc[attr_class, 'pred']
-            diff_instance['pred_2'] = df2.loc[attr_class, 'pred']
-            diffs.append(diff_instance)
+                diff_instance['attr_class'] = attr_class
+                diff_instance['pred_1'] = df1.loc[attr_class, 'pred']
+                diff_instance['pred_2'] = df2.loc[attr_class, 'pred']
+                diffs.append(diff_instance)
             batch.cpu()
             pbar.update(1)
     model1.cpu()

@@ -57,7 +57,7 @@ def latex_col(vals, std = None, digits = 2, std_digits = None):
         return out
 
 
-def trainingresults():
+def trainingresults(scale_f = 100, digits = 1, std_digits = 2):
     df = pd.read_csv('results/trainingresults.csv', index_col = 0)
     dfs = []
     for source in 'scientsbank', 'beetle':
@@ -77,7 +77,7 @@ def trainingresults():
     tex = df.copy()
     for group in 'scientsbank', 'scientsbank-TT', 'beetle', 'beetle-TT':
         #tex[group +'-F1'] = [f"${m} ({s})$" if m!= 0 else "" for m,s in zip(tex[group +'-F1-mean'],tex[group +'-F1-std'])]
-        tex[group +'-F1'] = latex_col(100*tex[group +'-F1-mean'], std = 100*tex[group +'-F1-std'], digits = 1, std_digits = 2)
+        tex[group +'-F1'] = latex_col(scale_f*tex[group +'-F1-mean'], std = scale_f*tex[group +'-F1-std'], digits = digits, std_digits = std_digits)
         tex = tex.drop(columns = [group + '-F1-mean', group + '-F1-std'])
     tex.to_csv(os.path.join('tables','trainingresults.csv'), sep = '&', index = True ,line_terminator = '\\\\\n')
     tex = tex.to_latex(column_format = 'l')
@@ -86,7 +86,7 @@ def trainingresults():
     return df, tex
 
 
-def evaluationresults(source, drop_cols = [], with_TT = True, with_means = True):
+def evaluationresults(source, scale_f = 10, digits = 2, drop_cols = [], with_TT = True, with_means = True):
     dRC = pd.read_csv('results/RC.csv', index_col=0)
     dHA = pd.read_csv('results/HA.csv', index_col=0)
     dRC['metric'] = 'RC'
@@ -100,11 +100,11 @@ def evaluationresults(source, drop_cols = [], with_TT = True, with_means = True)
         for metric in ['HA', 'RC']:
             _df = df[(df['source']==source)&(df['metric']==metric)]
             col = method + '_' + metric
-            vals = 10*_df[_df['metric']==metric][method]
-            col_mean = r'${:.2f}$'.format(vals.mean())
+            vals = scale_f*_df[_df['metric']==metric][method]
+            col_mean = r'${:.{}f}$'.format(vals.mean(), digits)
             means.update({col:col_mean})
             try:
-                col_vals = latex_col(vals, digits = 2)
+                col_vals = latex_col(vals, digits = digits)
             except:
                 col_vals = ['']*len(_df)
             token_types = _df[_df['metric']==metric]['token_types']
@@ -128,8 +128,8 @@ def evaluationresults(source, drop_cols = [], with_TT = True, with_means = True)
     if with_means:
         _df = _df.append(means, ignore_index = True)
     tex = to_latex(_df)
-    # with open(os.path.join('tables', f'evaluations_{source}.tex'), 'w') as f:
-    #     f.write(tex)
+    with open(os.path.join('tables', f'evaluations_{source}.tex'), 'w') as f:
+        f.write(tex)
     return _df
 
 
